@@ -1,5 +1,7 @@
 # Peer-2-Peer Lending Backend MVP
 
+Build a worker-owned lending circle for income gaps and urgent needs.
+
 This project now includes a Node.js + Express + PostgreSQL backend for core peer-lending flows:
 
 - profiles
