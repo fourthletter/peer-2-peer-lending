@@ -1,0 +1,496 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Cookie Tin Collective - Peer Lending for Gig Workers</title>
+    <meta
+      name="description"
+      content="Cookie Tin Collective helps gig workers pool monthly contributions, access fair personal loans, and build a community-run financial safety net."
+    />
+    <link rel="preconnect" href="https://fonts.googleapis.com" />
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+    <link
+      href="https://fonts.googleapis.com/css2?family=Inter:wght@600;700;800&family=Manrope:wght@400;500;600;700;800&display=swap"
+      rel="stylesheet"
+    />
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="container topbar-inner">
+        <a class="brand" href="#top">
+          <span class="brand-mark" aria-hidden="true">
+            <svg viewBox="0 0 24 24" role="img" aria-hidden="true">
+              <circle cx="12" cy="12" r="7.8" />
+              <circle cx="9.1" cy="9.3" r="0.9" />
+              <circle cx="14.8" cy="8.9" r="1" />
+              <circle cx="15.9" cy="13.9" r="0.9" />
+              <circle cx="10.6" cy="15.3" r="1.05" />
+              <circle cx="7.9" cy="12.9" r="0.75" />
+            </svg>
+          </span>
+          <span class="brand-text">
+            <strong>Cookie Tin</strong>
+            <small>Collective</small>
+          </span>
+        </a>
+        <nav class="topnav" aria-label="Primary">
+          <a href="#monthly-model">How It Works</a>
+          <a href="#demo">Interactive Demo</a>
+          <a href="#loan-examples">Examples</a>
+          <a href="#join-now">Join Now</a>
+        </nav>
+      </div>
+    </header>
+
+    <header class="hero" id="top">
+      <div class="container hero-inner">
+        <h1>
+          Build a worker-owned lending circle for
+          <span class="highlight">income gaps</span><br />
+          and <span class="highlight">urgent needs</span>.
+        </h1>
+        <p class="hero-note">
+          Cookie Tin Collective helps gig workers contribute monthly, access fair personal loans,
+          and keep money circulating in community.
+        </p>
+        <p class="hero-subnote">
+          No predatory rates. Transparent rules. Community governance.
+        </p>
+        <a class="hero-cta" href="#join-now">Join now</a>
+      </div>
+    </header>
+
+    <main>
+      <section class="section" id="monthly-model">
+        <div class="container">
+          <h2>How Monthly Peer Lending Works</h2>
+          <p class="section-lead">A simple 4-step cycle that repeats every month.</p>
+          <div class="cycle-grid">
+            <article class="card">
+              <span class="step-number">1</span>
+              <h3>Members Contribute</h3>
+              <p>Each member contributes a fixed monthly amount to a shared lending pool.</p>
+            </article>
+            <article class="card">
+              <span class="step-number">2</span>
+              <h3>Requests Open</h3>
+              <p>Workers request loans for urgent needs like rent, healthcare, or transportation.</p>
+            </article>
+            <article class="card">
+              <span class="step-number">3</span>
+              <h3>Loans Are Issued</h3>
+              <p>Community-approved loans are sent out based on circle rules and available funds.</p>
+            </article>
+            <article class="card">
+              <span class="step-number">4</span>
+              <h3>Repayments Recycle</h3>
+              <p>Repayments return to the pool so the next members can borrow the following month.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt">
+        <div class="container">
+          <h2>Monthly Contribution Tiers</h2>
+          <p class="section-lead">Choose a tier that matches your budget and income volatility.</p>
+          <div class="tier-grid">
+            <article class="card tier-card">
+              <h3>Starter</h3>
+              <p class="tier-amount">$25 / month</p>
+              <p>Good for workers testing the model while building consistency.</p>
+            </article>
+            <article class="card tier-card">
+              <h3>Core</h3>
+              <p class="tier-amount">$50 / month</p>
+              <p>Balanced contribution level for regular participation in the lending circle.</p>
+            </article>
+            <article class="card tier-card">
+              <h3>Builder</h3>
+              <p class="tier-amount">$100 / month</p>
+              <p>Stronger monthly contribution that increases total lending capacity.</p>
+            </article>
+          </div>
+          <div class="math-box">
+            <h3>Example Monthly Pool Math</h3>
+            <p>
+              If 20 members contribute an average of $50 each, the circle creates a
+              <strong>$1,000 monthly pool</strong>.
+            </p>
+            <p>
+              Example disbursement: <strong>2 loans at $300</strong> and
+              <strong>1 loan at $400</strong> each month.
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="demo">
+        <div class="container">
+          <h2>Interactive Peer Lending Demo</h2>
+          <p class="section-lead">
+            Adjust the sliders to simulate how a lending circle can fund monthly personal loans.
+          </p>
+          <div class="demo-grid">
+            <article class="card">
+              <h3>Set Your Circle</h3>
+              <label class="demo-label">
+                Members in circle:
+                <input id="demo-members" type="range" min="10" max="60" step="5" value="20" />
+                <strong id="demo-members-value">20</strong>
+              </label>
+              <label class="demo-label">
+                Monthly tier:
+                <select id="demo-tier">
+                  <option value="25">$25 Starter</option>
+                  <option value="50" selected>$50 Core</option>
+                  <option value="100">$100 Builder</option>
+                </select>
+              </label>
+              <label class="demo-label">
+                Delinquency assumption:
+                <select id="demo-delinquency">
+                  <option value="0">0% (all repayments on time)</option>
+                  <option value="5" selected>5% (light delay risk)</option>
+                  <option value="10">10% (moderate delay risk)</option>
+                </select>
+              </label>
+              <label class="demo-label">
+                Admin fee:
+                <select id="demo-admin-fee">
+                  <option value="0" selected>0%</option>
+                  <option value="2">2%</option>
+                  <option value="5">5%</option>
+                </select>
+              </label>
+            </article>
+            <article class="card">
+              <h3>Monthly Pool</h3>
+              <p class="demo-number" id="demo-pool">$1,000</p>
+              <p class="demo-copy">
+                Net disbursable after admin fee:
+                <strong id="demo-net-pool">$1,000</strong>
+              </p>
+              <p class="demo-copy">
+                This is the total available for community-approved loans this month.
+              </p>
+            </article>
+            <article class="card">
+              <h3>Sample Loan Mix</h3>
+              <p class="demo-copy" id="demo-mix">
+                2 loans at $300 + 1 loan at $400
+              </p>
+              <p class="demo-copy">
+                Example repayment terms:
+              </p>
+              <ul class="demo-list">
+                <li>$300 loan -> 3 months at $100/mo</li>
+                <li>$400 loan -> 4 months at $100/mo</li>
+              </ul>
+            </article>
+          </div>
+          <div class="math-box demo-projection">
+            <h3>6-Month Projection</h3>
+            <p class="demo-copy">
+              Projected capital available after 6 months:
+              <strong id="demo-six-month">$6,000</strong>
+            </p>
+            <p class="demo-copy">
+              Delayed repayments (assumption):
+              <strong id="demo-delayed">$300</strong>
+            </p>
+            <p class="demo-copy">
+              Total admin fees collected:
+              <strong id="demo-fees">$0</strong>
+            </p>
+          </div>
+        </div>
+      </section>
+
+      <section class="section" id="loan-examples">
+        <div class="container narrow">
+          <h2>What a Personal Loan Could Support</h2>
+          <p class="section-lead">
+            Beyond covering urgent bills, a circle loan can help you build your dream - launch a
+            small project, invest in your craft, and take the next step toward long-term stability.
+          </p>
+          <div class="loan-grid">
+            <article class="card">
+              <h3>Rent</h3>
+              <p><strong>$300</strong> to avoid late fees during a short income gap.</p>
+              <p>Repayment example: 3 months at $100/month.</p>
+            </article>
+            <article class="card">
+              <h3>Car Repair</h3>
+              <p><strong>$500</strong> for emergency repairs to keep driving for work.</p>
+              <p>Repayment example: 5 months at $100/month.</p>
+            </article>
+            <article class="card">
+              <h3>Healthcare Cost</h3>
+              <p><strong>$200</strong> for urgent medication or a copay.</p>
+              <p>Repayment example: 4 months at $50/month.</p>
+            </article>
+            <article class="card">
+              <h3>Tools or Software</h3>
+              <p><strong>$400</strong> for equipment that unlocks paid gigs.</p>
+              <p>Repayment example: 4 months at $100/month.</p>
+            </article>
+            <article class="card">
+              <h3>Emergency Support</h3>
+              <p>Support for urgent, unexpected expenses that cannot wait.</p>
+              <p>Repayment example: 5 months at $70/month.</p>
+            </article>
+            <article class="card">
+              <h3>Build Your Dream</h3>
+              <p>Funding to support a small business idea, creative launch, or skill-building path.</p>
+              <p>Repayment example: 6 months at $100/month.</p>
+            </article>
+          </div>
+        </div>
+      </section>
+
+      <section class="section section-alt">
+        <div class="container">
+          <h2>Join the Interest List</h2>
+          <p class="section-lead">
+            Fill out this form to join the pilot waitlist and receive updates on launch timing,
+            member criteria, and onboarding.
+          </p>
+          <form class="join-form" id="join-now">
+            <label>
+              Full name
+              <input type="text" name="fullName" placeholder="Your name" required />
+            </label>
+            <label>
+              Email
+              <input type="email" name="email" placeholder="you@example.com" required />
+            </label>
+            <label>
+              City
+              <input type="text" name="city" placeholder="Your city" />
+            </label>
+            <label>
+              Worker type
+              <select name="workerType">
+                <option value="">Select one</option>
+                <option>Gig platform worker</option>
+                <option>Freelancer</option>
+                <option>Artist / creative worker</option>
+                <option>Independent contractor</option>
+                <option>Other</option>
+              </select>
+            </label>
+            <label>
+              Preferred monthly contribution
+              <select name="monthlyTier" required>
+                <option value="">Select one</option>
+                <option value="starter">$25 Starter</option>
+                <option value="core">$50 Core</option>
+                <option value="builder">$100 Builder</option>
+              </select>
+            </label>
+            <label>
+              Loan amount needed (optional)
+              <input type="number" name="loanAmount" min="50" step="50" placeholder="300" />
+            </label>
+            <label>
+              Repayment term in months (optional)
+              <input type="number" name="repaymentMonths" min="1" max="12" step="1" placeholder="3" />
+            </label>
+            <label class="full-width">
+              Primary loan purpose
+              <select name="loanPurposePreset">
+                <option value="">Select one (optional)</option>
+                <option>Emergency support</option>
+                <option>Rent gap</option>
+                <option>Car repair</option>
+                <option>Healthcare cost</option>
+                <option>Tools or software</option>
+                <option>Build your dream</option>
+              </select>
+            </label>
+            <label class="full-width">
+              Additional loan-use details (optional)
+              <textarea
+                name="loanUse"
+                rows="4"
+                placeholder="Example: emergency expense, rent gap, car repair, or building your dream..."
+              ></textarea>
+            </label>
+            <button type="submit">Submit interest</button>
+            <p class="form-message full-width" role="status" aria-live="polite"></p>
+          </form>
+          <p class="disclaimer">
+            This is a frontend-only interest form for planning. Loan terms shown above are
+            illustrative examples and final policies would be set by community governance.
+          </p>
+        </div>
+      </section>
+
+      <section class="section">
+        <div class="container narrow">
+          <h2>Community Guardrails</h2>
+          <div class="quotes">
+            <blockquote>Transparent member rules, contributions, approvals, and repayment terms.</blockquote>
+            <blockquote>No predatory lending intent - designed for fair, mutual support.</blockquote>
+            <blockquote>Decisions are community-governed and may vary by local circle.</blockquote>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <footer class="footer">
+      <div class="container narrow">
+        <p>
+          Learn more about the inspiration for this project: Cookie Tin Collective.
+          <a
+            href="https://ccir2ilab.substack.com/p/applications-now-open-for-our-founding"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Cookie Tin Collective
+          </a>
+          . Read broader Cookie Tin Collective updates on
+          <a
+            href="https://ccir2ilab.substack.com/p/applications-now-open-for-our-founding"
+            target="_blank"
+            rel="noreferrer"
+          >
+            Substack
+          </a>
+          .
+        </p>
+      </div>
+    </footer>
+    <script>
+      (function () {
+        const form = document.querySelector(".join-form");
+        const message = form ? form.querySelector(".form-message") : null;
+        const demoMembers = document.getElementById("demo-members");
+        const demoMembersValue = document.getElementById("demo-members-value");
+        const demoTier = document.getElementById("demo-tier");
+        const demoDelinquency = document.getElementById("demo-delinquency");
+        const demoAdminFee = document.getElementById("demo-admin-fee");
+        const demoPool = document.getElementById("demo-pool");
+        const demoNetPool = document.getElementById("demo-net-pool");
+        const demoMix = document.getElementById("demo-mix");
+        const demoSixMonth = document.getElementById("demo-six-month");
+        const demoDelayed = document.getElementById("demo-delayed");
+        const demoFees = document.getElementById("demo-fees");
+        const API_BASE = "http://localhost:4000/api";
+        const tierToMonthlyContribution = {
+          starter: 25,
+          core: 50,
+          builder: 100,
+        };
+
+        function formatCurrency(value) {
+          return new Intl.NumberFormat("en-US", {
+            style: "currency",
+            currency: "USD",
+            maximumFractionDigits: 0,
+          }).format(value);
+        }
+
+        function renderDemo() {
+          if (!demoMembers || !demoTier || !demoPool || !demoMembersValue || !demoMix) return;
+          const members = Number(demoMembers.value);
+          const tier = Number(demoTier.value);
+          const delinquencyRate = Number(demoDelinquency ? demoDelinquency.value : 0) / 100;
+          const adminFeeRate = Number(demoAdminFee ? demoAdminFee.value : 0) / 100;
+          const pool = members * tier;
+          const adminFeeAmount = pool * adminFeeRate;
+          const netPool = pool - adminFeeAmount;
+          demoMembersValue.textContent = String(members);
+          demoPool.textContent = formatCurrency(pool);
+          if (demoNetPool) demoNetPool.textContent = formatCurrency(netPool);
+
+          const loanA = Math.round(netPool * 0.3 / 50) * 50;
+          const loanB = Math.round(netPool * 0.3 / 50) * 50;
+          const loanC = Math.max(netPool - loanA - loanB, 0);
+          demoMix.textContent = `2 loans at ${formatCurrency(loanA)} + 1 loan at ${formatCurrency(loanC)}`;
+
+          const sixMonthGross = pool * 6;
+          const sixMonthFees = adminFeeAmount * 6;
+          const delayedRepayments = sixMonthGross * delinquencyRate;
+          const sixMonthAvailable = sixMonthGross - sixMonthFees - delayedRepayments;
+          if (demoSixMonth) demoSixMonth.textContent = formatCurrency(sixMonthAvailable);
+          if (demoDelayed) demoDelayed.textContent = formatCurrency(delayedRepayments);
+          if (demoFees) demoFees.textContent = formatCurrency(sixMonthFees);
+        }
+
+        if (demoMembers && demoTier) {
+          demoMembers.addEventListener("input", renderDemo);
+          demoTier.addEventListener("change", renderDemo);
+          if (demoDelinquency) demoDelinquency.addEventListener("change", renderDemo);
+          if (demoAdminFee) demoAdminFee.addEventListener("change", renderDemo);
+          renderDemo();
+        }
+
+        if (!form || !message) return;
+
+        function setMessage(text, isError) {
+          message.textContent = text;
+          message.dataset.state = isError ? "error" : "success";
+        }
+
+        form.addEventListener("submit", async (event) => {
+          event.preventDefault();
+          setMessage("Submitting your interest...", false);
+
+          const formData = new FormData(form);
+          const contributionTier = formData.get("monthlyTier");
+          const monthlyContribution = tierToMonthlyContribution[contributionTier];
+
+          const profilePayload = {
+            fullName: (formData.get("fullName") || "").toString().trim(),
+            email: (formData.get("email") || "").toString().trim(),
+            city: (formData.get("city") || "").toString().trim() || null,
+            workerType: (formData.get("workerType") || "").toString().trim() || null,
+            contributionTier,
+            monthlyContribution,
+          };
+
+          try {
+            const profileRes = await fetch(`${API_BASE}/profiles`, {
+              method: "POST",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify(profilePayload),
+            });
+            const profileData = await profileRes.json();
+            if (!profileRes.ok) throw new Error(profileData.message || "Unable to create profile");
+
+            const loanAmount = Number(formData.get("loanAmount") || 0);
+            const loanUsePreset = (formData.get("loanPurposePreset") || "").toString().trim();
+            const loanUseDetails = (formData.get("loanUse") || "").toString().trim();
+            const loanUse = [loanUsePreset, loanUseDetails].filter(Boolean).join(" - ");
+            const repaymentMonths = Number(formData.get("repaymentMonths") || 0);
+
+            if (loanAmount > 0 && loanUse) {
+              const loanPayload = {
+                profileId: profileData.id,
+                amount: loanAmount,
+                purpose: loanUse,
+                repaymentMonths: repaymentMonths > 0 ? repaymentMonths : 3,
+              };
+              const loanRes = await fetch(`${API_BASE}/loan-requests`, {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(loanPayload),
+              });
+              const loanData = await loanRes.json();
+              if (!loanRes.ok) throw new Error(loanData.message || "Unable to submit loan request");
+            }
+
+            form.reset();
+            setMessage("Thanks! Your profile was submitted successfully.", false);
+          } catch (error) {
+            setMessage(`Submission failed: ${error.message}`, true);
+          }
+        });
+      })();
+    </script>
+  </body>
+</html>

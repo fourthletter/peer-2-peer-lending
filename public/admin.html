@@ -1,0 +1,391 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Admin Dashboard - Cookie Tin Collective</title>
+    <style>
+      body {
+        margin: 0;
+        font-family: Inter, system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
+        background: #f4f6f8;
+        color: #1f2d3d;
+      }
+      .container {
+        width: min(1100px, calc(100% - 2rem));
+        margin: 2rem auto 3rem;
+      }
+      h1,
+      h2 {
+        margin: 0 0 0.75rem;
+      }
+      .muted {
+        color: #607284;
+      }
+      .panel {
+        background: #fff;
+        border: 1px solid #dde3ea;
+        border-radius: 12px;
+        padding: 1rem;
+        margin-top: 1rem;
+      }
+      .metrics {
+        display: grid;
+        grid-template-columns: repeat(3, minmax(0, 1fr));
+        gap: 0.75rem;
+      }
+      .viz-grid {
+        display: grid;
+        grid-template-columns: 1.5fr 1fr;
+        gap: 0.75rem;
+      }
+      .metric {
+        background: #f9fbff;
+        border: 1px solid #dbe4f3;
+        border-radius: 10px;
+        padding: 0.8rem;
+      }
+      .metric strong {
+        display: block;
+        font-size: 1.35rem;
+        margin-top: 0.2rem;
+      }
+      table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 0.92rem;
+      }
+      th,
+      td {
+        text-align: left;
+        border-bottom: 1px solid #e5ebf2;
+        padding: 0.55rem 0.45rem;
+        vertical-align: top;
+      }
+      th {
+        font-size: 0.78rem;
+        letter-spacing: 0.04em;
+        text-transform: uppercase;
+        color: #5f7084;
+      }
+      .error {
+        color: #b42318;
+      }
+      .chart-card {
+        background: #f9fbff;
+        border: 1px solid #dbe4f3;
+        border-radius: 10px;
+        padding: 0.8rem;
+      }
+      .bars {
+        margin-top: 0.55rem;
+        display: grid;
+        gap: 0.5rem;
+      }
+      .bar-row {
+        display: grid;
+        grid-template-columns: 140px 1fr 70px;
+        align-items: center;
+        gap: 0.5rem;
+      }
+      .bar-track {
+        background: #e6ecf5;
+        border-radius: 999px;
+        height: 0.62rem;
+        overflow: hidden;
+      }
+      .bar-fill {
+        background: #3f71b8;
+        height: 100%;
+      }
+      .legend {
+        margin-top: 0.7rem;
+        display: grid;
+        gap: 0.4rem;
+      }
+      .legend-item {
+        display: flex;
+        justify-content: space-between;
+        font-size: 0.9rem;
+      }
+      .swatch {
+        display: inline-block;
+        width: 0.7rem;
+        height: 0.7rem;
+        border-radius: 3px;
+        margin-right: 0.45rem;
+      }
+      .empty-note {
+        margin-top: 0.6rem;
+        font-size: 0.85rem;
+        color: #607284;
+      }
+      @media (max-width: 900px) {
+        .metrics {
+          grid-template-columns: 1fr;
+        }
+        .viz-grid {
+          grid-template-columns: 1fr;
+        }
+        .bar-row {
+          grid-template-columns: 110px 1fr 60px;
+        }
+      }
+    </style>
+  </head>
+  <body>
+    <main class="container">
+      <h1>Admin Dashboard</h1>
+      <p class="muted">View member profiles and track repayment performance.</p>
+
+      <section class="panel">
+        <h2>Payment Summary</h2>
+        <div id="summary-metrics" class="metrics"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Data Visualizations</h2>
+        <div class="viz-grid">
+          <article class="chart-card">
+            <h3>Contributions by Member</h3>
+            <div id="contribution-bars" class="bars"></div>
+            <p class="empty-note" id="contribution-note"></p>
+          </article>
+          <article class="chart-card">
+            <h3>Installment Status</h3>
+            <svg id="status-donut" viewBox="0 0 120 120" width="120" height="120" aria-hidden="true">
+              <circle cx="60" cy="60" r="42" stroke="#e7edf6" stroke-width="16" fill="none"></circle>
+              <circle id="donut-paid" cx="60" cy="60" r="42" stroke="#2f9e74" stroke-width="16" fill="none" stroke-linecap="round" transform="rotate(-90 60 60)"></circle>
+              <circle id="donut-open" cx="60" cy="60" r="42" stroke="#f2a22e" stroke-width="16" fill="none" stroke-linecap="round" transform="rotate(-90 60 60)"></circle>
+            </svg>
+            <div class="legend" id="status-legend"></div>
+          </article>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Member Profiles</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Tier</th>
+              <th>Monthly</th>
+              <th>Total Contrib.</th>
+              <th>Loan Requests</th>
+            </tr>
+          </thead>
+          <tbody id="profiles-table"></tbody>
+        </table>
+      </section>
+
+      <section class="panel">
+        <h2>Payment Tracking by Member</h2>
+        <table>
+          <thead>
+            <tr>
+              <th>Profile ID</th>
+              <th>Name</th>
+              <th>Email</th>
+              <th>Total Due</th>
+              <th>Total Paid</th>
+              <th>Outstanding</th>
+              <th>Installments</th>
+            </tr>
+          </thead>
+          <tbody id="payments-table"></tbody>
+        </table>
+      </section>
+
+      <p id="error" class="error"></p>
+    </main>
+
+    <script>
+      const API_BASE = "http://localhost:4000/api/admin";
+      const MOCK_PROFILES = [
+        {
+          id: 101,
+          full_name: "Ana Rivera",
+          email: "ana@example.com",
+          contribution_tier: "core",
+          monthly_contribution: 50,
+          total_contributions: 300,
+          total_loan_requests: 1,
+        },
+        {
+          id: 102,
+          full_name: "Malik Thompson",
+          email: "malik@example.com",
+          contribution_tier: "builder",
+          monthly_contribution: 100,
+          total_contributions: 600,
+          total_loan_requests: 2,
+        },
+        {
+          id: 103,
+          full_name: "Priya Shah",
+          email: "priya@example.com",
+          contribution_tier: "starter",
+          monthly_contribution: 25,
+          total_contributions: 150,
+          total_loan_requests: 1,
+        },
+      ];
+      const MOCK_PAYMENTS = {
+        summary: {
+          total_due: 1600,
+          total_paid: 1100,
+          outstanding_balance: 500,
+          paid_installments: 8,
+          open_installments: 4,
+          total_repayments: 12,
+        },
+        members: [
+          { profile_id: 101, full_name: "Ana Rivera", email: "ana@example.com", total_due: 500, total_paid: 400, outstanding_balance: 100, installments: 4 },
+          { profile_id: 102, full_name: "Malik Thompson", email: "malik@example.com", total_due: 700, total_paid: 400, outstanding_balance: 300, installments: 5 },
+          { profile_id: 103, full_name: "Priya Shah", email: "priya@example.com", total_due: 400, total_paid: 300, outstanding_balance: 100, installments: 3 },
+        ],
+      };
+
+      function formatCurrency(value) {
+        return new Intl.NumberFormat("en-US", {
+          style: "currency",
+          currency: "USD",
+          maximumFractionDigits: 2,
+        }).format(Number(value || 0));
+      }
+
+      function renderSummary(summary) {
+        const container = document.getElementById("summary-metrics");
+        container.innerHTML = `
+          <div class="metric"><span>Total Due</span><strong>${formatCurrency(summary.total_due)}</strong></div>
+          <div class="metric"><span>Total Paid</span><strong>${formatCurrency(summary.total_paid)}</strong></div>
+          <div class="metric"><span>Outstanding Balance</span><strong>${formatCurrency(summary.outstanding_balance)}</strong></div>
+          <div class="metric"><span>Paid Installments</span><strong>${summary.paid_installments}</strong></div>
+          <div class="metric"><span>Open Installments</span><strong>${summary.open_installments}</strong></div>
+          <div class="metric"><span>Total Repayments</span><strong>${summary.total_repayments}</strong></div>
+        `;
+      }
+
+      function renderProfiles(rows) {
+        const tbody = document.getElementById("profiles-table");
+        tbody.innerHTML = rows
+          .map(
+            (row) => `
+            <tr>
+              <td>${row.id}</td>
+              <td>${row.full_name || ""}</td>
+              <td>${row.email || ""}</td>
+              <td>${row.contribution_tier || ""}</td>
+              <td>${formatCurrency(row.monthly_contribution)}</td>
+              <td>${formatCurrency(row.total_contributions)}</td>
+              <td>${row.total_loan_requests}</td>
+            </tr>
+          `
+          )
+          .join("");
+      }
+
+      function renderPayments(rows) {
+        const tbody = document.getElementById("payments-table");
+        tbody.innerHTML = rows
+          .map(
+            (row) => `
+            <tr>
+              <td>${row.profile_id}</td>
+              <td>${row.full_name || ""}</td>
+              <td>${row.email || ""}</td>
+              <td>${formatCurrency(row.total_due)}</td>
+              <td>${formatCurrency(row.total_paid)}</td>
+              <td>${formatCurrency(row.outstanding_balance)}</td>
+              <td>${row.installments}</td>
+            </tr>
+          `
+          )
+          .join("");
+      }
+
+      function renderContributionBars(rows, usingMock) {
+        const target = document.getElementById("contribution-bars");
+        const note = document.getElementById("contribution-note");
+        const data = rows
+          .slice()
+          .sort((a, b) => Number(b.total_contributions) - Number(a.total_contributions))
+          .slice(0, 8);
+        const max = Math.max(...data.map((r) => Number(r.total_contributions || 0)), 1);
+        target.innerHTML = data
+          .map((row) => {
+            const amount = Number(row.total_contributions || 0);
+            const width = (amount / max) * 100;
+            return `
+              <div class="bar-row">
+                <span>${row.full_name || "Unknown"}</span>
+                <div class="bar-track"><div class="bar-fill" style="width:${width}%"></div></div>
+                <strong>${formatCurrency(amount)}</strong>
+              </div>
+            `;
+          })
+          .join("");
+        note.textContent = usingMock
+          ? "Showing mock profile data until live contributions are available."
+          : "";
+      }
+
+      function renderStatusDonut(summary) {
+        const paid = Number(summary.paid_installments || 0);
+        const open = Number(summary.open_installments || 0);
+        const total = Math.max(paid + open, 1);
+        const radius = 42;
+        const circumference = 2 * Math.PI * radius;
+        const paidLength = (paid / total) * circumference;
+        const openLength = (open / total) * circumference;
+        const paidArc = document.getElementById("donut-paid");
+        const openArc = document.getElementById("donut-open");
+        paidArc.setAttribute("stroke-dasharray", `${paidLength} ${circumference}`);
+        paidArc.setAttribute("stroke-dashoffset", "0");
+        openArc.setAttribute("stroke-dasharray", `${openLength} ${circumference}`);
+        openArc.setAttribute("stroke-dashoffset", String(-paidLength));
+
+        const legend = document.getElementById("status-legend");
+        legend.innerHTML = `
+          <div class="legend-item"><span><i class="swatch" style="background:#2f9e74"></i>Paid installments</span><strong>${paid}</strong></div>
+          <div class="legend-item"><span><i class="swatch" style="background:#f2a22e"></i>Open installments</span><strong>${open}</strong></div>
+          <div class="legend-item"><span>Outstanding balance</span><strong>${formatCurrency(summary.outstanding_balance)}</strong></div>
+        `;
+      }
+
+      async function loadData() {
+        try {
+          const [profilesRes, paymentsRes] = await Promise.all([
+            fetch(`${API_BASE}/profiles`),
+            fetch(`${API_BASE}/payments`),
+          ]);
+          if (!profilesRes.ok || !paymentsRes.ok) {
+            throw new Error("Unable to load admin data");
+          }
+          const liveProfiles = await profilesRes.json();
+          const livePayments = await paymentsRes.json();
+          const hasLiveProfiles = Array.isArray(liveProfiles) && liveProfiles.length > 0;
+          const profiles = hasLiveProfiles ? liveProfiles : MOCK_PROFILES;
+          const payments = hasLiveProfiles ? livePayments : MOCK_PAYMENTS;
+          renderProfiles(profiles);
+          renderSummary(payments.summary);
+          renderPayments(payments.members);
+          renderContributionBars(profiles, !hasLiveProfiles);
+          renderStatusDonut(payments.summary);
+        } catch (error) {
+          renderProfiles(MOCK_PROFILES);
+          renderSummary(MOCK_PAYMENTS.summary);
+          renderPayments(MOCK_PAYMENTS.members);
+          renderContributionBars(MOCK_PROFILES, true);
+          renderStatusDonut(MOCK_PAYMENTS.summary);
+          document.getElementById("error").textContent = `${error.message}. Showing mock data.`;
+        }
+      }
+
+      loadData();
+    </script>
+  </body>
+</html>

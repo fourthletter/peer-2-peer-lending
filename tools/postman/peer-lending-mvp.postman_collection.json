@@ -1,0 +1,219 @@
+{
+  "info": {
+    "_postman_id": "2df040c8-65e1-4dbd-a3bf-f4468f3a9852",
+    "name": "Peer Lending MVP",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "item": [
+    {
+      "name": "Health Check",
+      "request": {
+        "method": "GET",
+        "header": [],
+        "url": {
+          "raw": "{{baseUrl}}/health",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "health"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Profile",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"fullName\": \"Demo Worker\",\n  \"email\": \"demo.worker@example.com\",\n  \"city\": \"Richmond\",\n  \"workerType\": \"Freelancer\",\n  \"contributionTier\": \"core\",\n  \"monthlyContribution\": 50\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/profiles",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "profiles"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Contribution",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"profileId\": 1,\n  \"contributionMonth\": \"2026-04-01\",\n  \"amount\": 50\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/contributions",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "contributions"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Create Loan Request",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"profileId\": 1,\n  \"amount\": 300,\n  \"purpose\": \"Rent support\",\n  \"repaymentMonths\": 3\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/loan-requests",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "loan-requests"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Admin: Approve Loan",
+      "request": {
+        "method": "PATCH",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          },
+          {
+            "key": "Authorization",
+            "value": "Basic {{adminBasicAuth}}"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"status\": \"approved\",\n  \"reviewedBy\": \"admin\",\n  \"notes\": \"Approved for MVP demo\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/loan-requests/1/status",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "loan-requests",
+            "1",
+            "status"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Schedule Repayments",
+      "request": {
+        "method": "POST",
+        "header": [
+          {
+            "key": "Content-Type",
+            "value": "application/json"
+          }
+        ],
+        "body": {
+          "mode": "raw",
+          "raw": "{\n  \"loanRequestId\": 1,\n  \"startDate\": \"2026-04-01\"\n}"
+        },
+        "url": {
+          "raw": "{{baseUrl}}/api/repayments/schedule",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "repayments",
+            "schedule"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Admin: Profiles",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Basic {{adminBasicAuth}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/profiles",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "profiles"
+          ]
+        }
+      }
+    },
+    {
+      "name": "Admin: Payments",
+      "request": {
+        "method": "GET",
+        "header": [
+          {
+            "key": "Authorization",
+            "value": "Basic {{adminBasicAuth}}"
+          }
+        ],
+        "url": {
+          "raw": "{{baseUrl}}/api/admin/payments",
+          "host": [
+            "{{baseUrl}}"
+          ],
+          "path": [
+            "api",
+            "admin",
+            "payments"
+          ]
+        }
+      }
+    }
+  ],
+  "variable": [
+    {
+      "key": "baseUrl",
+      "value": "http://localhost:4000"
+    },
+    {
+      "key": "adminBasicAuth",
+      "value": "YWRtaW46Y29va2llLXRpbi1hZG1pbg=="
+    }
+  ]
+}
