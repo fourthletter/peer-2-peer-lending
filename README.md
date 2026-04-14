@@ -60,6 +60,9 @@ Server defaults to `http://localhost:4000`.
 
 ## Admin dashboard (backend component)
 
+<img width="1104" height="705" alt="Screenshot 2026-04-14 at 3 40 48 PM" src="https://github.com/user-attachments/assets/73383507-b9ee-4e8f-b53e-4326a0bf9d30" />
+
+
 Open:
 
 - `http://localhost:4000/admin.html`
