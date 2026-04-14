@@ -10,6 +10,9 @@ This project now includes a Node.js + Express + PostgreSQL backend for core peer
 - repayment schedules and payments
 - admin loan status actions
 
+<img width="1224" height="709" alt="Screenshot 2026-04-14 at 3 38 34 PM" src="https://github.com/user-attachments/assets/bbad788a-4922-4f4b-8e1f-05e8dca31d32" />
+
+
 ## 1) Setup
 
 1. Copy `.env.example` to `.env`.
