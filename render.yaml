@@ -1,6 +1,6 @@
 services:
   - type: web
-    name: morethancode-ai-labor-monitor
+    name: peer-2-peer-lending
     runtime: python
     plan: starter
     buildCommand: pip install -r requirements.txt
