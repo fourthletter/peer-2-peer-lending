@@ -45,6 +45,15 @@ app = Flask(
 app.secret_key = os.environ.get("FLASK_SECRET_KEY", "news-agent-dev-key-change-me")
 app.jinja_env.globals["discovery_region_label"] = discovery_region_label
 
+DEFAULT_MTC_URL = "https://morethancode.org"
+
+
+def site_url() -> str:
+    return os.environ.get("SITE_URL", DEFAULT_MTC_URL).rstrip("/")
+
+
+app.jinja_env.globals["site_url"] = site_url
+
 
 def _parse_form_date(name: str, default: date) -> date:
     raw = request.form.get(name, "").strip()
@@ -388,9 +397,16 @@ def projects():
     return jsonify({"ok": True, "runtime": "flask"})
 
 
+def _is_local_request() -> bool:
+    host = (request.host or "").split(":")[0].lower()
+    return host in ("127.0.0.1", "localhost", "::1")
+
+
 @app.route("/", methods=["GET"])
 def index():
-    return redirect(url_for("incidents"))
+    if _is_local_request():
+        return redirect(url_for("incidents"))
+    return redirect(f"{site_url()}/incidents")
 
 
 @app.route("/incidents", methods=["GET"])
@@ -494,10 +510,10 @@ DEFAULT_PORT = 5050
 def main() -> None:
     port = int(os.environ.get("PORT", str(DEFAULT_PORT)))
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
-    site_url = os.environ.get("SITE_URL", f"http://127.0.0.1:{port}").rstrip("/")
-    print(f"MoreThanCode AI & Labor Monitor: {site_url}")
-    print(f"  Incident visualization: {site_url}/incidents")
-    print(f"  News aggregator:          {site_url}/news")
+    site_url_val = site_url()
+    print(f"MoreThanCode AI & Labor Monitor: {site_url_val}")
+    print(f"  Incident visualization: {site_url_val}/incidents")
+    print(f"  News aggregator:          {site_url_val}/news")
     app.run(host="127.0.0.1", port=port, debug=debug)
 
 
