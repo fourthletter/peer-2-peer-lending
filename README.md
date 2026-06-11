@@ -120,7 +120,7 @@ Add repository secret `RENDER_DEPLOY_HOOK_URL` with your Render deploy hook URL.
 
 ### 5) Verify production
 
-- `GET /health` → `{"ok": true, "runtime": "flask"}`
+- `GET /projects` → `{"ok": true, "runtime": "flask"}` (`/health` is the same alias for Render)
 - `/` redirects to `/incidents`
 - `/news` preview works with keyword ranking
 

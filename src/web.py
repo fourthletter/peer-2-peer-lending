@@ -382,8 +382,9 @@ def _viz_page_context(
     return ctx
 
 
+@app.route("/projects", methods=["GET"])
 @app.route("/health", methods=["GET"])
-def health():
+def projects():
     return jsonify({"ok": True, "runtime": "flask"})
 
 
