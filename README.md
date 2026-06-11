@@ -84,7 +84,7 @@ This repo deploys from GitHub to [Render](https://render.com) (same pattern as t
 
 ### 1) Create or update Render web service
 
-Connect this GitHub repo (`fourthletter/peer-2-peer-lending` until renamed). Confirm:
+Connect this GitHub repo [`fourthletter/ai-labor-monitor`](https://github.com/fourthletter/ai-labor-monitor). Confirm:
 
 - Build command: `pip install -r requirements.txt`
 - Start command: `gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 src.web:app`
@@ -114,8 +114,8 @@ Add repository secret `RENDER_DEPLOY_HOOK_URL` with your Render deploy hook URL.
 
 ### 4) Custom domain and DNS
 
-1. Add custom domain `morethancode.org` on the Render service.
-2. In your DNS provider, point `morethancode.org` to Render (A/CNAME per Render's instructions).
+1. Add custom domain `morethancode.org` on the Render **ai-labor-monitor** service.
+2. In your DNS provider, point `morethancode.org` to Render (A `@` → `216.24.57.1`; `www` CNAME → `ai-labor-monitor.onrender.com`).
 3. **Disable GitHub Pages** on this repo — Render owns the domain; do not publish a `CNAME` via Pages.
 
 ### 5) Verify production
@@ -149,6 +149,5 @@ render.yaml         Render blueprint
 
 ## Notes
 
-- The GitHub repo may still be named `peer-2-peer-lending`; rename it in GitHub Settings if desired.
 - Incident viz requires `EVENTREGISTRY_API_KEY`. Use **Refresh data** on `/incidents` after deploy.
 - Production uses keyword ranking (`RANK_LLM=0`); local dev can enable Ollama with `RANK_LLM=1`.
