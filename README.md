@@ -40,7 +40,7 @@ ollama pull qwen2.5:3b
 ollama serve   # usually runs automatically in the background
 ```
 
-Set `RANK_LLM=1` in `.env` for LLM ranking locally. Production on Render uses `RANK_LLM=0`.
+Set `RANK_LLM=1` in `.env` for LLM ranking locally. Production uses `RANK_LLM=0` (see [`render.yaml`](render.yaml)).
 
 ### 3. Configure environment variables
 
@@ -52,10 +52,10 @@ Edit `.env` — see [`.env.example`](.env.example) for the full list. Key variab
 | `EVENTREGISTRY_API_KEY` | Required for incident visualization |
 | `NEWS_API_KEY` | Optional; used for Europe/North America in `split` discovery mode |
 | `DISCOVERY_SOURCE` | `split` (default): NewsAPI for Europe/NA, Event Registry elsewhere |
-| `RANK_LLM` | `0` = keyword ranking (Render); `1` = Ollama ranking (local) |
+| `RANK_LLM` | `0` = keyword ranking (production); `1` = Ollama ranking (local) |
 | `SUMMARY_LLM` | `0` = snippet-only summaries (fastest) |
-| `VIZ_LOAD_ON_STARTUP` | `0` = skip heavy viz load on boot (recommended on Render) |
-| `VIZ_CACHE_DIR` | Optional path for persistent viz cache (e.g. `/var/data/viz_cache` on Render) |
+| `VIZ_LOAD_ON_STARTUP` | `0` = skip heavy viz load on boot (recommended in production) |
+| `VIZ_CACHE_DIR` | Optional path for persistent viz cache (e.g. `/var/data/viz_cache`) |
 | `FLASK_SECRET_KEY` | Session signing key (required in production) |
 | `PORT` | Web server port (default `5050`) |
 
@@ -75,54 +75,53 @@ python -m src.main --dry-run --from-date 2026-05-01 --to-date 2026-05-23 --count
 python -m src.main --send --count 5
 ```
 
-## Deploy to Render (morethancode.org)
+## Deploy to morethancode.org (no Render Dashboard)
 
-This repo deploys from GitHub to [Render](https://render.com) (same pattern as the previous MoreThanCode site).
+Everything is defined in [`render.yaml`](render.yaml): service, domains, disk, env defaults, and auto-deploy on push to `main`. You never need to click through the Render web UI after the one-time blueprint setup below.
 
-**Build:** `pip install -r requirements.txt`  
-**Start:** `gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 src.web:app`
+[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/fourthletter/ai-labor-monitor)
 
-### 1) Create or update Render web service
+### 1) One-time: apply the blueprint
 
-Connect this GitHub repo [`fourthletter/ai-labor-monitor`](https://github.com/fourthletter/ai-labor-monitor). Confirm:
+Click **Deploy to Render** above (or run `render blueprint launch` after [installing the Render CLI](https://render.com/docs/cli) and `render login`).
 
-- Build command: `pip install -r requirements.txt`
-- Start command: `gunicorn --bind 0.0.0.0:$PORT --workers 2 --timeout 120 src.web:app`
-- Auto-Deploy enabled
+When prompted for secrets (`EVENTREGISTRY_API_KEY`, optional `NEWS_API_KEY`), paste the values from your local `.env`.
 
-Or apply the blueprint in [`render.yaml`](render.yaml).
+Alternatively, after the service exists:
 
-### 2) Set Render environment variables
+```bash
+chmod +x scripts/render-env.sh
+./scripts/render-env.sh   # reads keys from .env, sets them via Render CLI
+```
 
-| Variable | Value |
-|----------|-------|
-| `SITE_URL` | `https://morethancode.org` |
-| `FLASK_SECRET_KEY` | strong random string |
-| `EVENTREGISTRY_API_KEY` | your Event Registry key |
-| `NEWS_API_KEY` | optional |
-| `DISCOVERY_SOURCE` | `split` |
-| `VIZ_LOAD_ON_STARTUP` | `0` |
-| `RANK_LLM` | `0` |
-| `SUMMARY_LLM` | `0` |
-| `VIZ_CACHE_DIR` | `/var/data/viz_cache` (with persistent disk mounted at `/var/data`) |
+### 2) DNS (GoDaddy)
 
-Add a **1 GB persistent disk** mounted at `/var/data` so incident cache survives redeploys.
+| Type | Name | Value |
+|------|------|--------|
+| **A** | `@` | `216.24.57.1` |
+| **CNAME** | `www` | `ai-labor-monitor.onrender.com` |
 
-### 3) Connect GitHub Actions to Render
+Remove old GitHub Pages A records (`185.199.*`) and any **AAAA** records. Disable domain forwarding/parking.
 
-Add repository secret `RENDER_DEPLOY_HOOK_URL` with your Render deploy hook URL. Pushes to `main` trigger [`.github/workflows/deploy-render.yml`](.github/workflows/deploy-render.yml).
+Render provisions HTTPS for `morethancode.org` automatically once DNS matches (defined in `render.yaml` `domains`).
 
-### 4) Custom domain and DNS
+### 3) Deploy updates
 
-1. Add custom domain `morethancode.org` on the Render **ai-labor-monitor** service.
-2. In your DNS provider, point `morethancode.org` to Render (A `@` → `216.24.57.1`; `www` CNAME → `ai-labor-monitor.onrender.com`).
-3. **Disable GitHub Pages** on this repo — Render owns the domain; do not publish a `CNAME` via Pages.
+Push to `main` — Render redeploys automatically (`autoDeployTrigger: commit`).
 
-### 5) Verify production
+```bash
+git push origin main
+```
 
-- `GET /projects` → `{"ok": true, "runtime": "flask"}` (`/health` is the same alias for Render)
-- `/` redirects to `/incidents`
-- `/news` preview works with keyword ranking
+### 4) Verify
+
+```bash
+curl -sS https://morethancode.org/health
+curl -sS -o /dev/null -w "incidents: %{http_code}\n" https://morethancode.org/incidents
+curl -sS -o /dev/null -w "news: %{http_code}\n" https://morethancode.org/news
+```
+
+Expected: JSON on `/health`, **200** on `/incidents` and `/news`.
 
 ## Project structure
 
@@ -143,8 +142,9 @@ static/
   site.css
 .github/workflows/
   ci.yml            Import check on push/PR
-  deploy-render.yml Trigger Render on push to main
-render.yaml         Render blueprint
+render.yaml         Infrastructure as code (Render blueprint)
+scripts/
+  render-env.sh     Push .env secrets to Render via CLI
 ```
 
 ## Notes
