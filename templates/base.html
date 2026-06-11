@@ -1,0 +1,52 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>{% block title %}AI &amp; Labor — MoreThanCode{% endblock %}</title>
+  <link rel="stylesheet" href="{{ url_for('static', filename='site.css') }}">
+  {% block extra_head %}{% endblock %}
+</head>
+<body>
+  <div class="topbar"></div>
+  <header class="masthead">
+    <div class="masthead-inner">
+      <a class="masthead-brand" href="https://morethancode.org/" target="_blank" rel="noopener">
+        <span class="logo-badge">MTC</span>
+        <div>
+          <h1>AI &amp; Labor Monitor</h1>
+          <p class="tag">A <strong>MoreThanCode.org</strong> research tool — AI impact on workers worldwide</p>
+        </div>
+      </a>
+      <nav class="site-nav" aria-label="Main">
+        <a class="site-tab{% if active_tab == 'incidents' %} active{% endif %}"
+          href="{{ url_for('incidents') }}">Incident visualization</a>
+        <a class="site-tab{% if active_tab == 'news' %} active{% endif %}"
+          href="{{ url_for('news') }}">News aggregator</a>
+        <a class="site-tab{% if active_tab == 'narratives' %} active{% endif %}"
+          href="{{ url_for('narratives') }}">Narrative approaches</a>
+      </nav>
+    </div>
+  </header>
+
+  {% block hero %}{% endblock %}
+
+  <div class="site-wrap">
+    {% with messages = get_flashed_messages(with_categories=true) %}
+      {% for category, message in messages %}
+        <div class="flash {{ category }}">{{ message }}</div>
+      {% endfor %}
+    {% endwith %}
+    {% block content %}{% endblock %}
+  </div>
+
+  <footer class="site-footer">
+    <p>
+      Part of the <a href="https://morethancode.org/" target="_blank" rel="noopener">MoreThanCode.org</a>
+      ecosystem — technology for worker power and global justice.
+    </p>
+  </footer>
+
+  {% block scripts %}{% endblock %}
+</body>
+</html>

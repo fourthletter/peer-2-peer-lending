@@ -1,0 +1,502 @@
+{% extends "base.html" %}
+{% block title %}Incident visualization — MoreThanCode{% endblock %}
+{% block extra_head %}
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+  <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+{% endblock %}
+{% block hero %}
+<section class="intro">
+    <h2>Incident visualization</h2>
+    <p>
+      Maps and charts of reported AI–labor incidents by country, sector, and type.
+      Circle size shows story count per country; use filters and date range to explore Jan 2020 – present.
+    </p>
+</section>
+{% endblock %}
+{% block content %}
+  <div class="layout layout-single">
+    <main>
+      <div class="panel viz-panel" id="labor-impact-viz" style="border:2px solid var(--accent-soft);">
+        <div class="panel-head">Labor impact dashboard</div>
+        <div class="panel-body" style="padding:1rem 1.1rem;">
+          <form id="viz-form" method="post" action="{{ url_for('load_viz') }}">
+            <div class="viz-options">
+              <div class="field-block span-2">
+                <label>Data date range</label>
+                <div class="segmented">
+                  <button type="button" class="seg-btn" data-preset="week">Last week</button>
+                  <button type="button" class="seg-btn" data-preset="month">Last month</button>
+                  <button type="button" class="seg-btn" data-preset="since2020">Jan 2020 – now</button>
+                  <button type="button" class="seg-btn" data-preset="ytd2026">2026 YTD</button>
+                </div>
+                <div class="row" style="margin-top:0.5rem;">
+                  <div>
+                    <label for="viz_date_from">Start</label>
+                    <input type="date" id="viz_date_from" name="date_from" required value="{{ date_from.isoformat() }}">
+                  </div>
+                  <div>
+                    <label for="viz_date_to">End</label>
+                    <input type="date" id="viz_date_to" name="date_to" required value="{{ date_to.isoformat() }}">
+                  </div>
+                </div>
+              </div>
+              <div class="field-block span-2">
+                <label>Discovery regions (data pull)</label>
+                <div class="region-grid">
+                  {% for region_id, region_label in thematic_options %}
+                  <label class="region-option">
+                    <input type="checkbox" name="geographic_regions" value="{{ region_id }}"
+                      {% if region_id in selected_regions %}checked{% endif %}>
+                    {{ region_label }}
+                  </label>
+                  {% endfor %}
+                </div>
+              </div>
+              <div class="field-block">
+                <label for="viz_extra_keywords">Focus keywords</label>
+                <input type="search" id="viz_extra_keywords" name="extra_keywords"
+                  placeholder="e.g. garment, voice actors" value="{{ extra_keywords }}">
+              </div>
+              <div class="field-block">
+                <label for="map-color-by">Map dot color</label>
+                <select id="map-color-by">
+                  <option value="region">Region</option>
+                  <option value="industry_type">Industry type</option>
+                  <option value="ai_incident_type" selected>AI incident type</option>
+                </select>
+              </div>
+              <div class="field-block" style="align-self:end;">
+                <button type="submit" class="btn btn-secondary" data-action="viz">Refresh data</button>
+              </div>
+            </div>
+          </form>
+
+          <div id="viz-client-filters" class="viz-options" style="border-bottom:none;padding-bottom:0;">
+            <div class="field-block span-2">
+              <label>Filter displayed incidents (client-side)</label>
+              <div class="row" style="grid-template-columns:1fr 1fr 1fr;">
+                <div>
+                  <span class="glabel" style="display:block;margin-bottom:0.3rem;">Region</span>
+                  <div id="filter-regions" class="filter-chips"></div>
+                </div>
+                <div>
+                  <span class="glabel" style="display:block;margin-bottom:0.3rem;">Industry</span>
+                  <div id="filter-industries" class="filter-chips"></div>
+                </div>
+                <div>
+                  <span class="glabel" style="display:block;margin-bottom:0.3rem;">AI incident type</span>
+                  <div id="filter-ai" class="filter-chips"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {% if viz_result and viz_result.viz.get('total', 0) > 0 %}
+          {% set viz = viz_result.viz %}
+          <p class="viz-intro">
+            <strong>{{ viz.total }}</strong> incidents · {{ viz.year_label }}
+            · {{ viz_result.discovered }} discovered
+          </p>
+          <div class="viz-kpis">
+            <div class="viz-kpi"><strong id="kpi-shown">{{ viz.total }}</strong><span>Shown after filters</span></div>
+            <div class="viz-kpi"><strong id="kpi-countries">{{ viz.map_country_bubbles|length }}</strong><span>Countries on map</span></div>
+          </div>
+          <div class="chart-grid">
+            <div class="chart-box chart-wide">
+              <h4>Incident map (circle size = stories per country)</h4>
+              <div id="incident-map" role="img" aria-label="World map of AI labor incidents by country"></div>
+              <p class="map-legend" id="map-legend">Size = incident count · Color = AI incident type · click for summary</p>
+              <div class="map-color-legend" id="map-color-legend"></div>
+            </div>
+            <div class="chart-box"><h4>By region</h4><canvas id="chart-region"></canvas></div>
+            <div class="chart-box"><h4>By industry</h4><canvas id="chart-industry"></canvas></div>
+            <div class="chart-box"><h4>By AI incident type</h4><canvas id="chart-ai"></canvas></div>
+          </div>
+          <script type="application/json" id="impact-records-data">{{ viz_result.records | tojson }}</script>
+          {% elif viz_result %}
+          <p class="viz-intro">No incidents in range. Try <strong>Jan 2020 – now</strong> and click <strong>Refresh data</strong>.</p>
+          {% else %}
+          <div class="viz-empty">
+            <p>No incident data loaded yet. Choose a date range and regions above, then click <strong>Refresh data</strong>.</p>
+            <p class="hint">For Jan 2020 – present, the first refresh can take 1–2 minutes.</p>
+          </div>
+          {% endif %}
+        </div>
+      </div>
+
+      {% if viz_result and viz_result.viz.get('total', 0) > 0 %}
+      <details class="panel" style="margin-top:0;">
+        <summary class="panel-head" style="cursor:pointer;list-style:none;">Parsed incidents table</summary>
+        <div class="panel-body">
+          <div class="parse-table-wrap">
+            <table class="parse-table" id="parse-table">
+              <thead>
+                <tr>
+                  <th>Date</th><th>Region</th><th>Country</th><th>Industry</th><th>AI incident</th><th>Headline</th>
+                </tr>
+              </thead>
+              <tbody id="parse-table-body"></tbody>
+            </table>
+          </div>
+        </div>
+      </details>
+      {% endif %}
+    </main>
+  </div>
+{% endblock %}
+{% block scripts %}
+  <script>
+    (function () {
+      const PALETTE = ["#1452cc", "#0f766e", "#7c3aed", "#b45309", "#be123c", "#0369a1", "#4d7c0f", "#9333ea", "#0e7490", "#a21caf"];
+      let allRecords = [];
+      let chartInstances = [];
+      let incidentMap = null;
+      let incidentLayer = null;
+      let colorIndex = {};
+
+      function fmt(d) { return d.toISOString().slice(0, 10); }
+
+      function rangeForPreset(preset) {
+        const end = new Date();
+        const start = new Date();
+        if (preset === "week") start.setDate(start.getDate() - 7);
+        else if (preset === "month") start.setMonth(start.getMonth() - 1);
+        else if (preset === "year") start.setFullYear(start.getFullYear() - 1);
+        else if (preset === "ytd2026") {
+          start.setFullYear(2026, 0, 1);
+          start.setHours(0, 0, 0, 0);
+        } else if (preset === "since2020") {
+          start.setFullYear(2020, 0, 1);
+          start.setHours(0, 0, 0, 0);
+        } else return null;
+        return { start: start, end: end };
+      }
+
+      document.querySelectorAll(".seg-btn[data-preset]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const range = rangeForPreset(btn.getAttribute("data-preset"));
+          if (!range) return;
+          [["viz_date_from", "viz_date_to"]].forEach(function (pair) {
+            const fromInput = document.getElementById(pair[0]);
+            const toInput = document.getElementById(pair[1]);
+            if (fromInput && toInput) {
+              fromInput.value = fmt(range.start);
+              toInput.value = fmt(range.end);
+            }
+          });
+        });
+      });
+
+      const vizForm = document.getElementById("viz-form");
+      if (vizForm) {
+        vizForm.addEventListener("submit", function (event) {
+          const submitter = event.submitter;
+          if (submitter) {
+            submitter.disabled = true;
+            submitter.textContent = "Refreshing…";
+          }
+        });
+      }
+
+      function colorFor(label) {
+        if (!colorIndex[label]) {
+          const keys = Object.keys(colorIndex);
+          colorIndex[label] = PALETTE[keys.length % PALETTE.length];
+        }
+        return colorIndex[label];
+      }
+
+      function destroyMap() {
+        if (incidentMap) {
+          incidentMap.remove();
+          incidentMap = null;
+          incidentLayer = null;
+        }
+      }
+
+      function destroyCharts() {
+        destroyMap();
+        chartInstances.forEach(function (c) { c.destroy(); });
+        chartInstances = [];
+      }
+
+      function countBy(records, field) {
+        const counts = {};
+        records.forEach(function (r) {
+          const k = r[field] || "Unknown";
+          counts[k] = (counts[k] || 0) + 1;
+        });
+        return Object.keys(counts)
+          .map(function (k) { return { label: k, count: counts[k] }; })
+          .sort(function (a, b) { return b.count - a.count; })
+          .slice(0, 12);
+      }
+
+      function getActiveFilters() {
+        function selected(containerId) {
+          const out = new Set();
+          const box = document.getElementById(containerId);
+          if (!box) return out;
+          box.querySelectorAll('input[type="checkbox"]:checked').forEach(function (cb) {
+            out.add(cb.value);
+          });
+          return out;
+        }
+        return {
+          regions: selected("filter-regions"),
+          industries: selected("filter-industries"),
+          ai: selected("filter-ai"),
+        };
+      }
+
+      function filterRecords(records) {
+        const f = getActiveFilters();
+        return records.filter(function (r) {
+          if (f.regions.size && !f.regions.has(r.region)) return false;
+          if (f.industries.size && !f.industries.has(r.industry_type)) return false;
+          if (f.ai.size && !f.ai.has(r.ai_incident_type)) return false;
+          return true;
+        });
+      }
+
+      function buildFilterChips(containerId, values, prefix) {
+        const box = document.getElementById(containerId);
+        if (!box || !values.length) return;
+        box.innerHTML = "";
+        values.forEach(function (val, i) {
+          const id = prefix + "-" + i;
+          const label = document.createElement("label");
+          label.setAttribute("for", id);
+          const cb = document.createElement("input");
+          cb.type = "checkbox";
+          cb.id = id;
+          cb.value = val;
+          cb.checked = true;
+          cb.addEventListener("change", renderDashboard);
+          label.appendChild(cb);
+          label.appendChild(document.createTextNode(val));
+          box.appendChild(label);
+        });
+      }
+
+      function barChart(canvasId, rows, horizontal) {
+        const el = document.getElementById(canvasId);
+        if (!el || !rows.length) return;
+        const chart = new Chart(el, {
+          type: "bar",
+          data: {
+            labels: rows.map(function (r) { return r.label; }),
+            datasets: [{
+              label: "Incidents",
+              data: rows.map(function (r) { return r.count; }),
+              backgroundColor: rows.map(function (r) { return colorFor(r.label); }),
+              borderRadius: 4,
+            }],
+          },
+          options: {
+            indexAxis: horizontal ? "y" : "x",
+            responsive: true,
+            maintainAspectRatio: true,
+            plugins: { legend: { display: false } },
+            scales: {
+              x: { beginAtZero: true, ticks: { precision: 0 } },
+              y: { beginAtZero: true, ticks: { precision: 0 } },
+            },
+          },
+        });
+        chartInstances.push(chart);
+      }
+
+      function escapeHtml(s) {
+        return String(s || "")
+          .replace(/&/g, "&amp;")
+          .replace(/</g, "&lt;")
+          .replace(/>/g, "&gt;")
+          .replace(/"/g, "&quot;");
+      }
+
+      function modeValue(records, field) {
+        const counts = {};
+        records.forEach(function (r) {
+          const k = r[field] || "Unknown";
+          counts[k] = (counts[k] || 0) + 1;
+        });
+        const keys = Object.keys(counts);
+        if (!keys.length) return "Unknown";
+        keys.sort(function (a, b) { return counts[b] - counts[a]; });
+        return keys[0];
+      }
+
+      function aggregateByCountry(records) {
+        const groups = {};
+        records.forEach(function (r) {
+          const country = r.country || "Unknown";
+          if (country === "Unknown") return;
+          const lat = typeof r.country_lat === "number" ? r.country_lat : r.lat;
+          const lon = typeof r.country_lon === "number" ? r.country_lon : r.lon;
+          if (typeof lat !== "number" || typeof lon !== "number" || (lat === 0 && lon === 0)) return;
+          if (!groups[country]) {
+            groups[country] = { country: country, lat: lat, lon: lon, records: [] };
+          }
+          groups[country].records.push(r);
+        });
+        return Object.keys(groups).map(function (k) {
+          const g = groups[k];
+          g.count = g.records.length;
+          const dates = g.records.map(function (r) { return r.date || ""; }).filter(Boolean).sort();
+          g.dateMin = dates[0] || "";
+          g.dateMax = dates[dates.length - 1] || "";
+          return g;
+        });
+      }
+
+      function bubbleRadius(count) {
+        return Math.min(36, Math.max(10, 6 + Math.sqrt(count) * 5));
+      }
+
+      function renderIncidentMap(records, colorBy) {
+        const el = document.getElementById("incident-map");
+        if (!el || typeof L === "undefined") return;
+        destroyMap();
+
+        const field = colorBy === "industry_type" ? "industry_type"
+          : colorBy === "region" ? "region" : "ai_incident_type";
+        const labels = { region: "Region", industry_type: "Industry type", ai_incident_type: "AI incident type" };
+        const clusters = aggregateByCountry(records);
+
+        incidentMap = L.map(el, { worldCopyJump: true, scrollWheelZoom: true }).setView([20, 10], 2);
+        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+          maxZoom: 18,
+          attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
+        }).addTo(incidentMap);
+        incidentLayer = L.layerGroup().addTo(incidentMap);
+
+        const bounds = [];
+        const legendValues = {};
+        clusters.forEach(function (cluster) {
+          const cat = modeValue(cluster.records, field);
+          const color = colorFor(cat);
+          legendValues[cat] = color;
+          const dateSpan = cluster.dateMin === cluster.dateMax
+            ? escapeHtml(cluster.dateMin)
+            : escapeHtml(cluster.dateMin) + " – " + escapeHtml(cluster.dateMax);
+          const sample = cluster.records.slice(0, 5).map(function (r) {
+            const h = escapeHtml((r.headline || "").slice(0, 100));
+            const link = r.url
+              ? " <a href=\"" + escapeHtml(r.url) + "\" target=\"_blank\" rel=\"noopener\">Read</a>"
+              : "";
+            return "<li>" + h + (r.headline && r.headline.length > 100 ? "…" : "") + link + "</li>";
+          }).join("");
+          const popup =
+            "<strong>" + escapeHtml(cluster.country) + "</strong><br>" +
+            cluster.count + " incident" + (cluster.count === 1 ? "" : "s") +
+            (dateSpan ? "<br>" + dateSpan : "") +
+            "<br>Region: " + escapeHtml(modeValue(cluster.records, "region")) +
+            "<ul class=\"map-popup-list\">" + sample + "</ul>";
+          const radius = bubbleRadius(cluster.count);
+          const marker = L.circleMarker([cluster.lat, cluster.lon], {
+            radius: radius,
+            fillColor: color,
+            color: "#ffffff",
+            weight: 2,
+            fillOpacity: 0.85,
+          })
+            .bindPopup(popup, { maxWidth: 340 })
+            .addTo(incidentLayer);
+          marker.bindTooltip(String(cluster.count), {
+            permanent: true,
+            direction: "center",
+            className: "map-bubble-count",
+            opacity: 1,
+          });
+          bounds.push([cluster.lat, cluster.lon]);
+        });
+
+        const kpiCountries = document.getElementById("kpi-countries");
+        if (kpiCountries) kpiCountries.textContent = String(clusters.length);
+
+        if (bounds.length === 1) {
+          incidentMap.setView(bounds[0], 4);
+        } else if (bounds.length > 1) {
+          incidentMap.fitBounds(bounds, { padding: [48, 48], maxZoom: 6 });
+        }
+
+        const legend = document.getElementById("map-legend");
+        if (legend) {
+          legend.textContent = "Size = incident count · Color = " + (labels[field] || field) + " · click for summary";
+        }
+        const colorLegend = document.getElementById("map-color-legend");
+        if (colorLegend) {
+          colorLegend.innerHTML = Object.keys(legendValues).sort().map(function (name) {
+            return "<span><i style=\"background:" + legendValues[name] + "\"></i>" + escapeHtml(name) + "</span>";
+          }).join("");
+        }
+
+        setTimeout(function () { incidentMap.invalidateSize(); }, 100);
+      }
+
+      function updateTable(records) {
+        const body = document.getElementById("parse-table-body");
+        if (!body) return;
+        body.innerHTML = records.slice(0, 80).map(function (r) {
+          const h = (r.headline || "").slice(0, 90);
+          const tail = (r.headline || "").length > 90 ? "…" : "";
+          return "<tr><td>" + (r.date || "") + "</td><td>" + (r.region || "") +
+            "</td><td>" + (r.country || "") + "</td><td>" + (r.industry_type || "") +
+            "</td><td>" + (r.ai_incident_type || "") + "</td><td>" + h + tail + "</td></tr>";
+        }).join("");
+      }
+
+      function renderDashboard() {
+        if (typeof Chart === "undefined" || !allRecords.length) return;
+        const filtered = filterRecords(allRecords);
+        const colorBy = (document.getElementById("map-color-by") || {}).value || "ai_incident_type";
+        const kpi = document.getElementById("kpi-shown");
+        if (kpi) kpi.textContent = String(filtered.length);
+
+        destroyCharts();
+        colorIndex = {};
+        renderIncidentMap(filtered, colorBy);
+        barChart("chart-region", countBy(filtered, "region"), true);
+        barChart("chart-industry", countBy(filtered, "industry_type"), true);
+        barChart("chart-ai", countBy(filtered, "ai_incident_type"), true);
+        updateTable(filtered);
+      }
+
+      function initDashboard() {
+        const dataEl = document.getElementById("impact-records-data");
+        if (!dataEl) return;
+        try {
+          allRecords = JSON.parse(dataEl.textContent);
+        } catch (e) {
+          return;
+        }
+        if (!allRecords.length) return;
+
+        const regions = [], industries = [], aiTypes = [];
+        allRecords.forEach(function (r) {
+          if (regions.indexOf(r.region) < 0) regions.push(r.region);
+          if (industries.indexOf(r.industry_type) < 0) industries.push(r.industry_type);
+          if (aiTypes.indexOf(r.ai_incident_type) < 0) aiTypes.push(r.ai_incident_type);
+        });
+        regions.sort();
+        industries.sort();
+        aiTypes.sort();
+        buildFilterChips("filter-regions", regions, "fr");
+        buildFilterChips("filter-industries", industries, "fi");
+        buildFilterChips("filter-ai", aiTypes, "fa");
+
+        const colorSel = document.getElementById("map-color-by");
+        if (colorSel) colorSel.addEventListener("change", renderDashboard);
+        renderDashboard();
+      }
+
+      if (document.readyState === "complete") {
+        initDashboard();
+      } else {
+        window.addEventListener("load", initDashboard);
+      }
+    })();
+  </script>
+{% endblock %}

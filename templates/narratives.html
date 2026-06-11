@@ -1,0 +1,60 @@
+{% extends "base.html" %}
+{% block title %}Narrative approaches{% endblock %}
+
+{% block hero %}
+<section class="intro">
+  <h2>Narrative approaches to AI &amp; labor</h2>
+  <p>
+    A portfolio of methods activists, researchers, and labor movements use to understand
+    and reshape how AI’s impact on work is told—in media, on platforms, and in public space.
+  </p>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="portfolio-intro">
+  <p>
+    Each block below describes one narrative strategy and a case study drawn from global
+    digital-rights and labor organizing. Use these as models when designing your own
+    campaigns, exhibits, or research.
+  </p>
+</div>
+
+<div class="portfolio-grid">
+  {% for case in narrative_cases %}
+  <article class="portfolio-block" id="{{ case.id }}">
+    <div class="portfolio-body">
+      <p class="portfolio-tag">{{ case.tag }}</p>
+      <h2>{{ case.title }}</h2>
+      <p class="portfolio-lead">{{ case.summary }}</p>
+      <ul class="portfolio-steps">
+        {% for point in case.approach_points %}
+        <li>{{ point }}</li>
+        {% endfor %}
+      </ul>
+      <div class="portfolio-case">
+        <h3>Case study</h3>
+        <p>
+          <span class="portfolio-org">{{ case.organization }}</span> —
+          {{ case.case_study }}
+        </p>
+      </div>
+      {% if case.resource_url %}
+      <a class="portfolio-resource" href="{{ case.resource_url }}" target="_blank" rel="noopener">
+        {{ case.resource_label }} &rsaquo;
+      </a>
+      {% else %}
+      <span class="portfolio-resource is-muted">{{ case.resource_label }}</span>
+      {% endif %}
+    </div>
+  </article>
+  {% endfor %}
+</div>
+
+<blockquote class="callout-quote">
+  <p>
+    <strong>Community guardrail:</strong> Narrative work should be accountable to the workers
+    and communities whose stories are told—co-design methods, not extractive storytelling.
+  </p>
+</blockquote>
+{% endblock %}

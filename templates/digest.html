@@ -1,0 +1,195 @@
+{% extends "base.html" %}
+{% block title %}News aggregator — MoreThanCode{% endblock %}
+
+{% block hero %}
+<section class="intro">
+  <h2>News aggregator</h2>
+  <p>
+    Discover and rank AI–labor stories from global sources. Set your date range and regional focus,
+    then preview a curated digest with summaries and links to original reporting.
+  </p>
+</section>
+{% endblock %}
+
+{% block content %}
+  <div class="layout layout-single">
+    <section class="panel">
+      <div class="panel-head">Search &amp; preview</div>
+      <div class="panel-body">
+        <form id="digest-form" method="post">
+          <div class="search-fields">
+            <div class="field-block span-2">
+              <label>Date range</label>
+              <div class="segmented">
+                <button type="button" class="seg-btn" data-preset="week">Last week</button>
+                <button type="button" class="seg-btn" data-preset="month">Last month</button>
+                <button type="button" class="seg-btn" data-preset="year">Last year</button>
+                <button type="button" class="seg-btn" data-preset="since2020">Jan 2020 – now</button>
+                <button type="button" class="seg-btn" data-preset="ytd2026">2026 YTD</button>
+              </div>
+              <div class="row" style="margin-top:0.6rem;">
+                <div>
+                  <label for="date_from">Start</label>
+                  <input type="date" id="date_from" name="date_from" required value="{{ date_from.isoformat() }}">
+                </div>
+                <div>
+                  <label for="date_to">End</label>
+                  <input type="date" id="date_to" name="date_to" required value="{{ date_to.isoformat() }}">
+                </div>
+              </div>
+            </div>
+
+            <div class="field-block">
+              <label for="article_count">Number of articles</label>
+              <input type="number" id="article_count" name="article_count" required
+                min="{{ min_count }}" max="{{ max_count }}"
+                value="{{ form_values.article_count if form_values else defaults.article_count }}">
+            </div>
+
+            <div class="field-block span-2">
+              <label>Geographic focus</label>
+              <div class="region-grid">
+                {% for region_id, region_label in thematic_options %}
+                <label class="region-option">
+                  <input type="checkbox" name="geographic_regions" value="{{ region_id }}"
+                    {% if region_id in selected_regions %}checked{% endif %}>
+                  {{ region_label }}
+                </label>
+                {% endfor %}
+              </div>
+            </div>
+
+            <div class="field-block span-2">
+              <label for="extra_keywords">Focus keywords (optional)</label>
+              <input type="search" id="extra_keywords" name="extra_keywords"
+                placeholder="e.g. gig economy, garment workers"
+                value="{{ extra_keywords }}">
+            </div>
+          </div>
+
+          <div class="search-actions">
+            <div class="actions">
+              <button type="submit" formaction="{{ url_for('preview') }}" class="btn btn-primary" data-action="preview">
+                Preview digest
+              </button>
+              <button type="submit" formaction="{{ url_for('export_csv') }}" class="btn btn-secondary">
+                Download CSV
+              </button>
+              <a href="{{ url_for('news') }}" class="btn-link">Reset</a>
+            </div>
+            <p class="hint">Preview may take 1–2 minutes. Charts and maps are on the
+              <a href="{{ url_for('incidents') }}">Incident visualization</a> tab.</p>
+          </div>
+        </form>
+      </div>
+    </section>
+
+    <section class="panel">
+      <div class="panel-head">Digest results</div>
+      <div class="panel-body" id="digest-section">
+        {% if result %}
+        <div class="results-bar">
+          <div class="results-count">
+            Results: {{ result.articles|length }} article{{ '' if result.articles|length == 1 else 's' }}
+            <small>Discovered {{ result.discovered }} · ranked {{ result.ranked_count }}</small>
+          </div>
+          <div class="toolbar-right">
+            <label for="sort-by">Sort by</label>
+            <select id="sort-by">
+              <option value="relevance">Relevance</option>
+              <option value="date">Date (most recent)</option>
+            </select>
+          </div>
+        </div>
+        {% if result.articles %}
+        <div class="card-list" id="card-list">
+          {% for article in result.articles %}
+          <article class="aim-card" data-rank="{{ loop.index0 }}"
+            data-date="{{ article.published.isoformat() if article.published else '' }}">
+            <div class="thumb" style="--hue: {{ (loop.index0 * 53) % 360 }};">
+              {{ (article.source[0] | upper) if article.source else '#' }}
+            </div>
+            <div class="card-main">
+              <h3><span class="idx">{{ loop.index }}.</span>{{ article.headline }}</h3>
+              <p class="card-summary">{{ article.summary }}</p>
+              <div class="card-foot">
+                <a href="{{ article.url }}" target="_blank" rel="noopener">Read full article &rsaquo;</a>
+              </div>
+            </div>
+          </article>
+          {% endfor %}
+        </div>
+        {% else %}
+        <p class="hint">No qualifying articles in this preview.</p>
+        {% endif %}
+        {% else %}
+        <p class="hint" style="margin:0;">Configure options above and click <strong>Preview digest</strong>.</p>
+        {% endif %}
+      </div>
+    </section>
+  </div>
+{% endblock %}
+
+{% block scripts %}
+  <script>
+    (function () {
+      function fmt(d) { return d.toISOString().slice(0, 10); }
+
+      function rangeForPreset(preset) {
+        const end = new Date();
+        const start = new Date();
+        if (preset === "week") start.setDate(start.getDate() - 7);
+        else if (preset === "month") start.setMonth(start.getMonth() - 1);
+        else if (preset === "year") start.setFullYear(start.getFullYear() - 1);
+        else if (preset === "ytd2026") {
+          start.setFullYear(2026, 0, 1);
+          start.setHours(0, 0, 0, 0);
+        } else if (preset === "since2020") {
+          start.setFullYear(2020, 0, 1);
+          start.setHours(0, 0, 0, 0);
+        } else return null;
+        return { start: start, end: end };
+      }
+
+      document.querySelectorAll(".seg-btn[data-preset]").forEach(function (btn) {
+        btn.addEventListener("click", function () {
+          const range = rangeForPreset(btn.getAttribute("data-preset"));
+          if (!range) return;
+          const fromInput = document.getElementById("date_from");
+          const toInput = document.getElementById("date_to");
+          if (fromInput && toInput) {
+            fromInput.value = fmt(range.start);
+            toInput.value = fmt(range.end);
+          }
+        });
+      });
+
+      const digestForm = document.getElementById("digest-form");
+      if (digestForm) {
+        digestForm.addEventListener("submit", function (event) {
+          const submitter = event.submitter;
+          if (!submitter) return;
+          if (submitter.getAttribute("data-action") === "preview") {
+            submitter.disabled = true;
+            submitter.textContent = "Running preview…";
+          }
+        });
+      }
+
+      const sortSel = document.getElementById("sort-by");
+      const list = document.getElementById("card-list");
+      if (sortSel && list) {
+        sortSel.addEventListener("change", function () {
+          const cards = Array.from(list.querySelectorAll(".aim-card"));
+          cards.sort(function (a, b) {
+            if (sortSel.value === "date") {
+              return (b.dataset.date || "").localeCompare(a.dataset.date || "");
+            }
+            return (parseInt(a.dataset.rank, 10) - parseInt(b.dataset.rank, 10));
+          });
+          cards.forEach(function (c) { list.appendChild(c); });
+        });
+      }
+    })();
+  </script>
+{% endblock %}
