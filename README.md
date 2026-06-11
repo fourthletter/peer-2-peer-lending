@@ -40,7 +40,7 @@ ollama pull qwen2.5:3b
 ollama serve   # usually runs automatically in the background
 ```
 
-Set `RANK_LLM=1` in `.env` for LLM ranking locally. Production uses `RANK_LLM=0` (see [`render.yaml`](render.yaml)).
+Set `RANK_LLM=1` in `.env` for LLM ranking locally. Use `RANK_LLM=0` on a server without Ollama.
 
 ### 3. Configure environment variables
 
@@ -75,53 +75,19 @@ python -m src.main --dry-run --from-date 2026-05-01 --to-date 2026-05-23 --count
 python -m src.main --send --count 5
 ```
 
-## Deploy to morethancode.org (no Render Dashboard)
+## Production (optional)
 
-Everything is defined in [`render.yaml`](render.yaml): service, domains, disk, env defaults, and auto-deploy on push to `main`. You never need to click through the Render web UI after the one-time blueprint setup below.
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/fourthletter/ai-labor-monitor)
-
-### 1) One-time: apply the blueprint
-
-Click **Deploy to Render** above (or run `render blueprint launch` after [installing the Render CLI](https://render.com/docs/cli) and `render login`).
-
-When prompted for secrets (`EVENTREGISTRY_API_KEY`, optional `NEWS_API_KEY`), paste the values from your local `.env`.
-
-Alternatively, after the service exists:
+Run the app on any Linux host with Python 3.12+, your `.env` secrets, and a reverse proxy for HTTPS.
 
 ```bash
-chmod +x scripts/render-env.sh
-./scripts/render-env.sh   # reads keys from .env, sets them via Render CLI
+pip install -r requirements.txt
+export $(grep -v '^#' .env | xargs)   # or use systemd EnvironmentFile
+gunicorn --bind 0.0.0.0:5050 --workers 2 --timeout 120 src.web:app
 ```
 
-### 2) DNS (GoDaddy)
+Set `SITE_URL=https://morethancode.org`, `FLASK_SECRET_KEY`, `EVENTREGISTRY_API_KEY`, `RANK_LLM=0`, and `SUMMARY_LLM=0` in the server environment. Put Caddy or nginx in front for TLS, then point GoDaddy DNS at that server’s IP.
 
-| Type | Name | Value |
-|------|------|--------|
-| **A** | `@` | `216.24.57.1` |
-| **CNAME** | `www` | `ai-labor-monitor.onrender.com` |
-
-Remove old GitHub Pages A records (`185.199.*`) and any **AAAA** records. Disable domain forwarding/parking.
-
-Render provisions HTTPS for `morethancode.org` automatically once DNS matches (defined in `render.yaml` `domains`).
-
-### 3) Deploy updates
-
-Push to `main` — Render redeploys automatically (`autoDeployTrigger: commit`).
-
-```bash
-git push origin main
-```
-
-### 4) Verify
-
-```bash
-curl -sS https://morethancode.org/health
-curl -sS -o /dev/null -w "incidents: %{http_code}\n" https://morethancode.org/incidents
-curl -sS -o /dev/null -w "news: %{http_code}\n" https://morethancode.org/news
-```
-
-Expected: JSON on `/health`, **200** on `/incidents` and `/news`.
+Health check: `GET /health` → `{"ok": true, "runtime": "flask"}`.
 
 ## Project structure
 
@@ -142,9 +108,6 @@ static/
   site.css
 .github/workflows/
   ci.yml            Import check on push/PR
-render.yaml         Infrastructure as code (Render blueprint)
-scripts/
-  render-env.sh     Push .env secrets to Render via CLI
 ```
 
 ## Notes
