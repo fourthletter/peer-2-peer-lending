@@ -8,16 +8,20 @@ from dataclasses import dataclass
 from datetime import date, timedelta
 
 from src.config import DigestConfig
+from src.discover import DEFAULT_QUERY
+from src.discovery_hub import newsapi_available
 from src.eventregistry_client import (
     discover_eventregistry_viz,
     fetch_viz_year_candidates,
 )
 from src.labor_impact_parse import VIZ_MIN_DATE, build_impact_dataset, empty_impact_viz
+from src.newsapi_client import discover_newsapi
 from src.thematic_regions import (
     EVENTREGISTRY_DISCOVERY_THEMES,
     classify_thematic_region,
     format_filter_summary,
     normalize_region_selection,
+    split_discovery_plan,
 )
 from src.viz_cache import load_year_candidates, save_year_candidates
 
@@ -35,8 +39,8 @@ class ImpactVizResult:
 def _viz_live_max() -> int:
     raw = os.environ.get("VIZ_DISCOVER_MAX_RESULTS", "120").strip()
     if raw.isdigit():
-        return min(max(int(raw), 20), 100)
-    return 100
+        return min(max(int(raw), 20), 120)
+    return 120
 
 
 def _viz_per_year() -> int:
@@ -147,6 +151,22 @@ def collect_viz_candidates(config: DigestConfig) -> list:
                 theme_region_keys=theme_keys,
             )
         )
+
+    if newsapi_available():
+        plan = split_discovery_plan(list(config.geographic_regions))
+        if plan.use_newsapi:
+            newsapi_buckets = (
+                list(plan.newsapi_bucket_keys) if plan.newsapi_bucket_keys else None
+            )
+            batches.append(
+                discover_newsapi(
+                    config.query or DEFAULT_QUERY,
+                    date_from=viz_from,
+                    date_to=viz_to,
+                    max_results=min(live_max, 50),
+                    bucket_keys=newsapi_buckets,
+                )
+            )
 
     candidates = _merge_candidates_unique(batches, seen)
     for c in candidates:

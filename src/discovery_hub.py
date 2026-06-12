@@ -9,7 +9,7 @@ from datetime import date, timedelta
 from itertools import zip_longest
 
 from src.article import ArticleCandidate
-from src.discover import discover_ddgs
+from src.discover import DEFAULT_QUERY, discover_ddgs
 from src.eventregistry_client import discover_eventregistry
 from src.feeds import discover_broad_google_news, discover_outlet_feeds
 from src.newsapi_client import discover_newsapi
@@ -17,14 +17,11 @@ from src.reddit_source import discover_reddit
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_QUERY = "AI impact on labor market employment jobs workers"
-
-
 def _discovery_cap(requested: int, *, newsapi_only: bool = False) -> int:
     """Max candidates to collect across all sources."""
     if newsapi_only:
         return requested
-    default = int(os.environ.get("DISCOVERY_MAX_CANDIDATES", "120"))
+    default = int(os.environ.get("DISCOVERY_MAX_CANDIDATES", "220"))
     return max(requested, default)
 
 
@@ -56,11 +53,20 @@ def _eventregistry_enabled() -> bool:
     )
 
 
-def _newsapi_enabled(*, split_mode: bool = False) -> bool:
-    """NewsAPI is US/UK-heavy and weak on Asia/Africa/Latin America/Middle East — off by default."""
-    if not split_mode and os.environ.get("ENABLE_NEWSAPI", "0") != "1":
+def newsapi_available() -> bool:
+    """True when NEWS_API_KEY is set and NewsAPI should run for the current DISCOVERY_SOURCE."""
+    if not os.environ.get("NEWS_API_KEY", "").strip():
         return False
-    return bool(os.environ.get("NEWS_API_KEY", "").strip())
+    src = os.environ.get("DISCOVERY_SOURCE", "hybrid").strip().lower()
+    if src in {"hybrid", "split", "api", "apis", "newsapi"}:
+        return True
+    return os.environ.get("ENABLE_NEWSAPI", "0") == "1"
+
+
+def _newsapi_enabled(*, split_mode: bool = False) -> bool:
+    """NewsAPI runs when a key is present in hybrid/split/api modes (or ENABLE_NEWSAPI=1)."""
+    del split_mode  # same policy for all modes
+    return newsapi_available()
 
 
 def _merge_candidates(
@@ -86,6 +92,83 @@ def _merge_candidates(
             if len(merged) >= max_total:
                 return merged
     return merged
+
+
+def _supplement_enabled() -> bool:
+    """Layer DDGS/RSS/outlet feeds on top of API discovery (strengthens split/hybrid)."""
+    return os.environ.get("DISCOVERY_SUPPLEMENT", "1") == "1"
+
+
+def _append_supplement_sources(
+    results: list[ArticleCandidate],
+    *,
+    query: str,
+    start: date,
+    end: date,
+    cap: int,
+    regions: list[str] | None,
+    global_coverage: bool,
+) -> list[ArticleCandidate]:
+    """Add non-API discovery batches up to cap, preserving existing URLs."""
+    if not _supplement_enabled() or len(results) >= cap:
+        return results
+    seen = {c.url for c in results}
+    batches: list[list[ArticleCandidate]] = []
+    use_outlets = os.environ.get("ENABLE_OUTLET_FEEDS", "1") == "1"
+    use_reddit = os.environ.get("ENABLE_REDDIT", "1") == "1"
+    use_broad_rss = os.environ.get("ENABLE_BROAD_NEWS", "1") == "1"
+
+    supplement_fns: list = [
+        lambda: discover_ddgs(
+            query=query,
+            max_candidates=min(40, cap),
+            date_from=start,
+            date_to=end,
+            global_coverage=global_coverage,
+            regions=regions,
+        ),
+    ]
+    if use_broad_rss:
+        supplement_fns.append(
+            lambda: discover_broad_google_news(
+                query, date_from=start, date_to=end, max_total=min(30, cap)
+            )
+        )
+    if use_outlets:
+        supplement_fns.append(
+            lambda: discover_outlet_feeds(
+                query, date_from=start, date_to=end, max_total=min(30, cap)
+            )
+        )
+    if use_reddit:
+        supplement_fns.append(
+            lambda: discover_reddit(
+                query=query, date_from=start, date_to=end, max_results=15
+            )
+        )
+
+    def _run_supplement(fn):
+        try:
+            return fn()
+        except Exception:
+            logger.exception("Supplement discovery source failed")
+            return []
+
+    with ThreadPoolExecutor(max_workers=len(supplement_fns)) as pool:
+        for batch in pool.map(_run_supplement, supplement_fns):
+            batches.append(batch)
+
+    for batch in batches:
+        if not batch:
+            continue
+        for c in batch:
+            if c.url in seen:
+                continue
+            seen.add(c.url)
+            results.append(c)
+            if len(results) >= cap:
+                return results
+    return results
 
 
 def _merge_er_first(
@@ -255,6 +338,16 @@ def discover_all(
         else:
             results = _merge_candidates(other_batches, cap)
 
+        results = _append_supplement_sources(
+            results,
+            query=query,
+            start=start,
+            end=end,
+            cap=cap,
+            regions=regions,
+            global_coverage=False,
+        )
+
         if not results and os.environ.get("DISCOVERY_FALLBACK_DDGS", "1") == "1":
             logger.warning(
                 "Split API discovery returned 0 articles; falling back to DuckDuckGo"
@@ -308,6 +401,15 @@ def discover_all(
             results = _merge_er_first(er_batch, other_batches, cap)
         else:
             results = _merge_candidates(other_batches, cap)
+        results = _append_supplement_sources(
+            results,
+            query=query,
+            start=start,
+            end=end,
+            cap=cap,
+            regions=regions,
+            global_coverage=False,
+        )
         if not results and os.environ.get("DISCOVERY_FALLBACK_DDGS", "1") == "1":
             logger.warning(
                 "News APIs returned 0 articles; falling back to DuckDuckGo regional search"

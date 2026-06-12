@@ -2,7 +2,7 @@
 
 Part of [MoreThanCode.org](https://morethancode.org/). Tracks **AI's impact on the labor market** with two tools:
 
-- **Incident visualization** (`/incidents`) — map and charts of labor-impact events from Event Registry (Jan 2020–present)
+- **Labor Impact Dashboard** (`/incidents`) — map and charts of labor-impact events from Event Registry (Jan 2020–present)
 - **News aggregator** (`/news`) — discover, rank, and preview a digest of relevant articles
 
 Use the **web UI** to pick a date range and article count, or run the CLI with defaults (last 7 days, top 5).
@@ -49,9 +49,10 @@ Edit `.env` — see [`.env.example`](.env.example) for the full list. Key variab
 | Variable | Description |
 |----------|-------------|
 | `SITE_URL` | Public URL (`https://morethancode.org` in production) |
-| `EVENTREGISTRY_API_KEY` | Required for incident visualization |
-| `NEWS_API_KEY` | Optional; used for Europe/North America in `split` discovery mode |
-| `DISCOVERY_SOURCE` | `split` (default): NewsAPI for Europe/NA, Event Registry elsewhere |
+| `EVENTREGISTRY_API_KEY` | Required for Labor Impact Dashboard data |
+| `NEWS_API_KEY` | Optional; auto-used in `hybrid` / `split` / `api` when set |
+| `DISCOVERY_SOURCE` | `hybrid` (default): NewsAPI + Event Registry + DDGS/RSS/outlets together |
+| `DISCOVERY_SUPPLEMENT` | `1` (default): in `split`/`api`, layer DDGS/RSS on API results |
 | `RANK_LLM` | `0` = keyword ranking (production); `1` = Ollama ranking (local) |
 | `SUMMARY_LLM` | `0` = snippet-only summaries (fastest) |
 | `VIZ_LOAD_ON_STARTUP` | `0` = skip heavy viz load on boot (recommended in production) |
@@ -123,13 +124,13 @@ src/
   main.py           CLI entry point
   web.py            Flask web UI
   pipeline.py       Shared digest pipeline
-  impact_viz.py     Incident visualization data
+  impact_viz.py     Labor Impact Dashboard data
   viz_cache.py      Disk cache for viz payload
   discovery_hub.py  Merges discovery sources
   rank.py           Relevance scoring
 templates/
   base.html         Shared layout (MoreThanCode branding)
-  viz.html          Incident visualization
+  viz.html          Labor Impact Dashboard
   digest.html       News aggregator
 static/
   site.css

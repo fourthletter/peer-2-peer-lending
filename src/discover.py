@@ -16,8 +16,12 @@ from src.regions import resolve_regions
 
 logger = logging.getLogger(__name__)
 
-DEFAULT_QUERY = "AI impact on labor market employment jobs workers"
-MAX_CANDIDATES = 120
+DEFAULT_QUERY = (
+    "AI artificial intelligence impact labor workforce employment jobs workers "
+    "industries automation robotics unions wages hiring layoffs gig economy "
+    "manufacturing retail workplace reskilling"
+)
+MAX_CANDIDATES = 220
 
 
 def timelimit_for_range(date_from: date, date_to: date) -> str:

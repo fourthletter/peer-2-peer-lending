@@ -174,7 +174,21 @@ def format_coverage_label(config: DigestConfig) -> str:
         THEMATIC_REGIONS,
     )
 
-    src = os.environ.get("DISCOVERY_SOURCE", "").strip().lower()
+    src = os.environ.get("DISCOVERY_SOURCE", "hybrid").strip().lower()
+    if src == "hybrid":
+        parts: list[str] = []
+        from src.discovery_hub import newsapi_available
+
+        if newsapi_available():
+            parts.append("NewsAPI")
+        if os.environ.get("ENABLE_EVENTREGISTRY", "1") == "1" and os.environ.get(
+            "EVENTREGISTRY_API_KEY", ""
+        ).strip():
+            parts.append("Event Registry")
+        parts.extend(["DuckDuckGo", "outlet RSS", "Google News"])
+        if os.environ.get("ENABLE_REDDIT", "1") == "1":
+            parts.append("Reddit")
+        return "Hybrid: " + ", ".join(parts)
     if src == "split":
         from src.thematic_regions import split_discovery_plan
 
@@ -184,7 +198,10 @@ def format_coverage_label(config: DigestConfig) -> str:
             parts.append("NewsAPI (Europe & North America)")
         if plan.use_eventregistry:
             parts.append("Event Registry (Asia, Africa, Latin America, Middle East)")
-        return "; ".join(parts) if parts else "Split discovery (no regions selected)"
+        label = "; ".join(parts) if parts else "Split discovery (no regions selected)"
+        if os.environ.get("DISCOVERY_SUPPLEMENT", "1") == "1":
+            label += " + DDGS/RSS supplement"
+        return label
     if src == "eventregistry":
         mode = os.environ.get("EVENTREGISTRY_QUERY_MODE", "ai_export").strip().lower()
         scope = "AI + labor" if mode != "ai" else "AI (global)"

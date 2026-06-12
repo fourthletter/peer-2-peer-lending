@@ -28,6 +28,7 @@ from src.viz_cache import load_payload_cache, save_payload_cache
 from src.narrative_cases import NARRATIVE_CASES
 from src.pipeline import DigestResult, build_digest
 from src.thematic_regions import THEMATIC_REGIONS, UI_REGION_ORDER
+from src.us_states import state_centroids_json, state_names
 
 ROOT = Path(__file__).resolve().parent.parent
 load_dotenv(ROOT / ".env")
@@ -388,6 +389,8 @@ def _viz_page_context(
     else:
         ctx["date_from"] = startup_cfg.date_from
         ctx["date_to"] = startup_cfg.date_to
+    ctx["us_state_names"] = state_names()
+    ctx["us_state_centroids"] = state_centroids_json()
     return ctx
 
 
@@ -512,7 +515,7 @@ def main() -> None:
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
     site_url_val = site_url()
     print(f"MoreThanCode AI & Labor Monitor: {site_url_val}")
-    print(f"  Incident visualization: {site_url_val}/incidents")
+    print(f"  Labor Impact Dashboard: {site_url_val}/incidents")
     print(f"  News aggregator:          {site_url_val}/news")
     app.run(host="127.0.0.1", port=port, debug=debug)
 

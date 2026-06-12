@@ -62,14 +62,15 @@ class DigestConfig:
         import os as _os
 
         src = _os.environ.get("DISCOVERY_SOURCE", "").strip().lower()
-        if src in {"eventregistry", "api", "apis", "newsapi", "split"}:
-            return min(max(self.article_count * 12, 50), 100)
+        cap_env = int(_os.environ.get("DISCOVERY_MAX_CANDIDATES", "220") or "220")
+        if src in {"eventregistry", "api", "apis", "newsapi", "split", "hybrid"}:
+            return min(max(self.article_count * 15, 60), cap_env)
         if self.newsapi_only:
-            return min(max(self.article_count * 12, 50), 100)
-        base = max(self.article_count * 6, 40)
+            return min(max(self.article_count * 15, 60), cap_env)
+        base = max(self.article_count * 8, 50)
         if self.global_coverage:
-            return min(max(base, 80), 120)
-        return min(base, 80)
+            return min(max(base, 100), cap_env)
+        return min(base, cap_env)
 
     @property
     def max_to_rank(self) -> int:

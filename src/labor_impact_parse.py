@@ -99,7 +99,8 @@ _AI_INCIDENT_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("Creative rights & voice", ("voice actor", "plagiarism", "copyright", "unauthorized ai voice", "creative")),
     ("Platform & gig work", ("uber", "gig economy", "delivery driver", "platform worker", "freelance platform")),
     ("Surveillance & monitoring", ("surveillance", "monitor", "facial recognition", "tracking workers")),
-    ("Policy & regulation", ("regulation", "policy", "lawmakers", "legislation", "union", "strike")),
+    ("Policy & regulation", ("regulation", "policy", "lawmakers", "legislation", "union", "strike", "collective bargaining")),
+    ("Industry & sector change", ("industry", "sector", "manufacturing", "supply chain", "logistics", "retail")),
     ("Skills & reskilling", ("reskill", "upskill", "training program", "skills gap", "retrain")),
 ]
 
@@ -153,6 +154,7 @@ class LaborImpactRecord:
     lon: float = 0.0
     country_lat: float = 0.0
     country_lon: float = 0.0
+    us_state: str = ""
     in_digest: bool = False
     source: str = ""
 
@@ -341,10 +343,19 @@ def parse_labor_impact(
 
     region = _region_from_candidate(candidate)
     country = _resolve_country(candidate)
-    from src.geo_coords import coords_for_country, coords_for_record
+    from src.geo_coords import coords_for_country, coords_for_record, coords_for_state_record
+    from src.us_states import infer_us_state
+
+    us_state = ""
+    if country == "United States":
+        us_state = infer_us_state(blob)
 
     country_lat, country_lon = coords_for_country(country=country, region=region)
-    lat, lon = coords_for_record(country=country, region=region, url=url)
+    state_coords = coords_for_state_record(state=us_state, url=url) if us_state else None
+    if state_coords:
+        lat, lon = state_coords
+    else:
+        lat, lon = coords_for_record(country=country, region=region, url=url)
 
     return LaborImpactRecord(
         headline=headline,
@@ -352,6 +363,7 @@ def parse_labor_impact(
         date=published.strftime("%Y-%m-%d"),
         region=region,
         country=country,
+        us_state=us_state,
         job_type=job,
         industry_type=industry,
         ai_incident_type=ai_incident,
@@ -451,6 +463,7 @@ def build_impact_dataset(
             "country_lon": r.country_lon,
             "region": r.region,
             "country": r.country,
+            "us_state": r.us_state,
             "industry_type": r.industry_type,
             "ai_incident_type": r.ai_incident_type,
             "job_type": r.job_type,
@@ -480,6 +493,7 @@ def build_impact_dataset(
             "industries": sorted({r.industry_type for r in records}),
             "ai_incidents": sorted({r.ai_incident_type for r in records}),
             "job_types": sorted({r.job_type for r in records}),
+            "us_states": sorted({r.us_state for r in records if r.us_state}),
         },
         "by_month": [
             {"label": m, "count": by_month[m]}

@@ -14,28 +14,35 @@ from src.text_utils import strip_html
 
 logger = logging.getLogger(__name__)
 
-RELEVANCE_THRESHOLD = 45
+RELEVANCE_THRESHOLD = 32
 TOP_N = 5
 MAX_TO_RANK = 20
 
 RELEVANCE_TOPIC = (
-    "impact of AI on the labor market — including jobs, employment, wages, "
-    "workforce displacement, reskilling, unions, labor policy, and automation "
-    "of work."
+    "impact of AI on labor, workers, and industries — including jobs, employment, "
+    "wages, workforce displacement, reskilling, unions, labor policy, automation, "
+    "robotics, gig work, manufacturing, retail, logistics, creative work, and "
+    "workplace technology."
 )
 
 RANK_JSON_INSTRUCTION = """\
 Respond with JSON only:
 {"rankings": [{"index": 0, "score": 85, "reason": "brief reason"}, ...]}
 Use zero-based index matching [0], [1], ... in the user message.
-Score 0-100 for relevance to AI's impact on jobs and work.
-Articles about AI plus jobs, workers, hiring, wages, or automation score 50+.
-Generic tech product news without labor angle scores below 40.\
+Score 0-100 for relevance to AI's impact on jobs, workers, and industries.
+Articles about AI plus jobs, workers, hiring, wages, automation, unions, or
+industry/workplace change score 45+. Sector-specific labor stories (manufacturing,
+retail, logistics, creative, tech) score 40+ when AI is involved.
+Generic tech product news without labor angle scores below 35.\
 """
 
 LABOR_KEYWORDS = re.compile(
-    r"\b(ai|artificial intelligence|labor|labour|jobs?|employment|workers?|"
-    r"wages?|hiring|layoff|automation|workforce|union|gig economy)\b",
+    r"\b(ai|artificial intelligence|machine learning|generative ai|chatgpt|"
+    r"labor|labour|jobs?|employment|workers?|workforce|workplace|"
+    r"wages?|salary|salaries|hiring|layoff|layoffs|redundan|"
+    r"automation|robot|robotics|union|strike|gig economy|freelance|"
+    r"industr(?:y|ies)|manufacturing|warehouse|retail|clerical|"
+    r"white.?collar|blue.?collar|reskill|upskill|job market|staffing)\b",
     re.I,
 )
 

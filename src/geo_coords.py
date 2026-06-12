@@ -84,6 +84,22 @@ def _base_coords(country: str, region: str) -> tuple[float, float]:
     return REGION_COORDS.get(region, (10.0, 10.0))
 
 
+def coords_for_us_state(state: str) -> tuple[float, float] | None:
+    from src.us_states import coords_for_state
+
+    return coords_for_state(state)
+
+
+def coords_for_state_record(*, state: str, url: str) -> tuple[float, float] | None:
+    """State centroid with per-story jitter so dots do not overlap."""
+    base = coords_for_us_state(state)
+    if not base:
+        return None
+    lat, lon = base
+    dlat, dlon = _jitter(url)
+    return round(lat + dlat, 4), round(lon + dlon, 4)
+
+
 def coords_for_country(*, country: str, region: str) -> tuple[float, float]:
     """Stable centroid for a country (no per-story jitter)."""
     lat, lon = _base_coords(country, region)

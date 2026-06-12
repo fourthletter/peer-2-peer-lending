@@ -32,6 +32,10 @@ LABOR_CONCEPTS = (
     "Automation",
     "Job",
     "White-collar_worker",
+    "Trade_union",
+    "Gig_economy",
+    "Manufacturing",
+    "Industrial_robot",
 )
 LABOR_CATEGORY = "dmoz/Business/Employment"
 
@@ -71,6 +75,9 @@ INFORMAL_WORKFORCE_KEYWORDS = (
     "street vendors",
     "nannies",
     "maids",
+    "call center",
+    "retail workers",
+    "factory workers",
 )
 
 
@@ -199,13 +206,13 @@ def _topic_supplement_enabled() -> bool:
 
 
 def _creative_supplement_count(total: int) -> int:
-    raw = os.environ.get("EVENTREGISTRY_CREATIVE_SUPPLEMENT", "18")
-    return min(max(int(raw), 0), 30, total)
+    raw = os.environ.get("EVENTREGISTRY_CREATIVE_SUPPLEMENT", "24")
+    return min(max(int(raw), 0), 35, total)
 
 
 def _informal_work_supplement_count(total: int) -> int:
-    raw = os.environ.get("EVENTREGISTRY_INFORMAL_WORK_SUPPLEMENT", "18")
-    return min(max(int(raw), 0), 30, total)
+    raw = os.environ.get("EVENTREGISTRY_INFORMAL_WORK_SUPPLEMENT", "24")
+    return min(max(int(raw), 0), 35, total)
 
 
 def _articles_to_candidates(
@@ -342,7 +349,7 @@ def discover_eventregistry(
         workforce_n = _informal_work_supplement_count(count) if _topic_supplement_enabled() else 0
         reserved = creative_n + workforce_n
         base = max(count - reserved, 2)
-        labor_n = max(1, int(base * 0.65))
+        labor_n = max(1, int(base * 0.55))
         ai_n = max(1, base - labor_n)
         if _topic_supplement_enabled():
             if creative_n:

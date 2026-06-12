@@ -1,5 +1,5 @@
 {% extends "base.html" %}
-{% block title %}Incident visualization — MoreThanCode{% endblock %}
+{% block title %}Labor Impact Dashboard — MoreThanCode{% endblock %}
 {% block extra_head %}
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
   <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.1/dist/chart.umd.min.js"></script>
@@ -7,10 +7,11 @@
 {% endblock %}
 {% block hero %}
 <section class="intro">
-    <h2>Incident visualization</h2>
+    <h2>Labor Impact Dashboard</h2>
     <p>
       Maps and charts of reported AI–labor incidents by country, sector, and type.
-      Circle size shows story count per country; use filters and date range to explore Jan 2020 – present.
+      Circle size shows story count per country; filter by US state, region, or date range (Jan 2020 – present).
+      State labels are inferred from headlines when a state is mentioned.
     </p>
 </section>
 {% endblock %}
@@ -18,7 +19,6 @@
   <div class="layout layout-single">
     <main>
       <div class="panel viz-panel" id="labor-impact-viz" style="border:2px solid var(--accent-soft);">
-        <div class="panel-head">Labor impact dashboard</div>
         <div class="panel-body" style="padding:1rem 1.1rem;">
           <form id="viz-form" method="post" action="{{ url_for('load_viz') }}">
             <div class="viz-options">
@@ -57,6 +57,15 @@
                 <label for="viz_extra_keywords">Focus keywords</label>
                 <input type="search" id="viz_extra_keywords" name="extra_keywords"
                   placeholder="e.g. garment, voice actors" value="{{ extra_keywords }}">
+              </div>
+              <div class="field-block">
+                <label for="filter-us-state">US state</label>
+                <select id="filter-us-state">
+                  <option value="">All US states</option>
+                  {% for state in us_state_names %}
+                  <option value="{{ state }}">{{ state }}</option>
+                  {% endfor %}
+                </select>
               </div>
               <div class="field-block">
                 <label for="map-color-by">Map dot color</label>
@@ -104,7 +113,7 @@
           </div>
           <div class="chart-grid">
             <div class="chart-box chart-wide">
-              <h4>Incident map (circle size = stories per country)</h4>
+              <h4>Map (circle size = stories per country)</h4>
               <div id="incident-map" role="img" aria-label="World map of AI labor incidents by country"></div>
               <p class="map-legend" id="map-legend">Size = incident count · Color = AI incident type · click for summary</p>
               <div class="map-color-legend" id="map-color-legend"></div>
@@ -133,7 +142,7 @@
             <table class="parse-table" id="parse-table">
               <thead>
                 <tr>
-                  <th>Date</th><th>Region</th><th>Country</th><th>Industry</th><th>AI incident</th><th>Headline</th>
+                  <th>Date</th><th>Region</th><th>Country</th><th>State</th><th>Industry</th><th>AI incident</th><th>Headline</th>
                 </tr>
               </thead>
               <tbody id="parse-table-body"></tbody>
@@ -146,9 +155,19 @@
   </div>
 {% endblock %}
 {% block scripts %}
+  <script type="application/json" id="us-state-centroids-data">{{ us_state_centroids | tojson }}</script>
   <script>
     (function () {
       const PALETTE = ["#1452cc", "#0f766e", "#7c3aed", "#b45309", "#be123c", "#0369a1", "#4d7c0f", "#9333ea", "#0e7490", "#a21caf"];
+      let stateCentroids = {};
+      try {
+        const centEl = document.getElementById("us-state-centroids-data");
+        if (centEl) {
+          JSON.parse(centEl.textContent).forEach(function (s) {
+            stateCentroids[s.name] = [s.lat, s.lon];
+          });
+        }
+      } catch (e) { /* ignore */ }
       let allRecords = [];
       let chartInstances = [];
       let incidentMap = null;
@@ -243,16 +262,22 @@
           });
           return out;
         }
+        const stateSel = document.getElementById("filter-us-state");
         return {
           regions: selected("filter-regions"),
           industries: selected("filter-industries"),
           ai: selected("filter-ai"),
+          usState: stateSel ? stateSel.value : "",
         };
       }
 
       function filterRecords(records) {
         const f = getActiveFilters();
         return records.filter(function (r) {
+          if (f.usState) {
+            if ((r.country || "") !== "United States") return false;
+            if ((r.us_state || "") !== f.usState) return false;
+          }
           if (f.regions.size && !f.regions.has(r.region)) return false;
           if (f.industries.size && !f.industries.has(r.industry_type)) return false;
           if (f.ai.size && !f.ai.has(r.ai_incident_type)) return false;
@@ -416,7 +441,11 @@
         const kpiCountries = document.getElementById("kpi-countries");
         if (kpiCountries) kpiCountries.textContent = String(clusters.length);
 
-        if (bounds.length === 1) {
+        const stateSel = document.getElementById("filter-us-state");
+        const selectedState = stateSel ? stateSel.value : "";
+        if (selectedState && stateCentroids[selectedState]) {
+          incidentMap.setView(stateCentroids[selectedState], 6);
+        } else if (bounds.length === 1) {
           incidentMap.setView(bounds[0], 4);
         } else if (bounds.length > 1) {
           incidentMap.fitBounds(bounds, { padding: [48, 48], maxZoom: 6 });
@@ -443,8 +472,9 @@
           const h = (r.headline || "").slice(0, 90);
           const tail = (r.headline || "").length > 90 ? "…" : "";
           return "<tr><td>" + (r.date || "") + "</td><td>" + (r.region || "") +
-            "</td><td>" + (r.country || "") + "</td><td>" + (r.industry_type || "") +
-            "</td><td>" + (r.ai_incident_type || "") + "</td><td>" + h + tail + "</td></tr>";
+            "</td><td>" + (r.country || "") + "</td><td>" + (r.us_state || "") +
+            "</td><td>" + (r.industry_type || "") + "</td><td>" + (r.ai_incident_type || "") +
+            "</td><td>" + h + tail + "</td></tr>";
         }).join("");
       }
 
@@ -489,6 +519,8 @@
 
         const colorSel = document.getElementById("map-color-by");
         if (colorSel) colorSel.addEventListener("change", renderDashboard);
+        const stateFilter = document.getElementById("filter-us-state");
+        if (stateFilter) stateFilter.addEventListener("change", renderDashboard);
         renderDashboard();
       }
 

@@ -6,8 +6,10 @@ import re
 
 # NewsAPI matches poorly on long natural-language strings; boolean queries work better.
 DEFAULT_NEWSAPI_QUERY = (
-    "(AI OR artificial intelligence) AND "
-    "(jobs OR employment OR workers OR labor OR workforce OR automation)"
+    "(AI OR artificial intelligence OR automation OR robotics) AND "
+    "(jobs OR employment OR workers OR labor OR workforce OR industry OR "
+    "industries OR manufacturing OR unions OR wages OR layoffs OR gig OR "
+    "workplace OR reskilling OR warehouse OR retail)"
 )
 
 _BOOLEAN_HINT = re.compile(r'[&|()]|"\s*OR\s*"|"\s*AND\s*"', re.I)
@@ -34,6 +36,16 @@ def to_newsapi_query(query: str) -> str:
         "workers",
         "workforce",
         "automation",
+        "industry",
+        "industries",
+        "manufacturing",
+        "union",
+        "wages",
+        "layoff",
+        "gig",
+        "workplace",
+        "warehouse",
+        "retail",
     )
     if any(term in lower for term in labor_terms):
         return DEFAULT_NEWSAPI_QUERY
@@ -49,9 +61,10 @@ def query_fallbacks(query: str) -> list[str]:
     primary = to_newsapi_query(query)
     fallbacks = [
         primary,
-        "AI AND (jobs OR employment OR workers OR labor OR workforce)",
-        "AI jobs OR employment automation",
-        "artificial intelligence jobs OR workers OR employment",
+        "AI AND (jobs OR employment OR workers OR labor OR workforce OR industry)",
+        "AI jobs OR employment automation OR robotics workplace",
+        "artificial intelligence jobs OR workers OR employment OR layoffs",
+        "(automation OR AI) AND (manufacturing OR warehouse OR retail OR unions)",
     ]
     raw = (query or "").strip()
     if raw and raw not in fallbacks:

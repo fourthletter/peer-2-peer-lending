@@ -18,7 +18,13 @@ services:
       - key: SITE_URL
         value: https://morethancode.org
       - key: DISCOVERY_SOURCE
-        value: split
+        value: hybrid
+      - key: DISCOVERY_SUPPLEMENT
+        value: "1"
+      - key: DISCOVERY_MAX_CANDIDATES
+        value: "220"
+      - key: RELEVANCE_THRESHOLD
+        value: "32"
       - key: VIZ_LOAD_ON_STARTUP
         value: "0"
       - key: RANK_LLM
