@@ -1,0 +1,24 @@
+name: Keep alive
+
+on:
+  schedule:
+    # Render free tier sleeps after ~15 min idle; ping every 10 min to avoid cold starts.
+    - cron: "*/10 * * * *"
+  workflow_dispatch:
+
+jobs:
+  ping:
+    runs-on: ubuntu-latest
+    timeout-minutes: 2
+    steps:
+      - name: Ping health endpoint
+        run: |
+          set -euo pipefail
+          for url in \
+            "https://morethancode.org/health" \
+            "https://www.morethancode.org/health"
+          do
+            echo "GET $url"
+            curl -fsS --max-time 90 --retry 2 --retry-delay 5 "$url"
+            echo
+          done
