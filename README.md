@@ -76,42 +76,19 @@ python -m src.main --dry-run --from-date 2026-05-01 --to-date 2026-05-23 --count
 python -m src.main --send --count 5
 ```
 
-## Deploy to morethancode.org (Render)
+## Production (optional)
 
-DNS already points at Render (`@` A → `216.24.57.1`). The app must be deployed via the blueprint below so TLS and gunicorn are configured.
-
-[![Deploy to Render](https://render.com/images/deploy-to-render-button.svg)](https://render.com/deploy?repo=https://github.com/fourthletter/ai-labor-monitor)
-
-### 1) One-time blueprint setup
-
-Click **Deploy to Render** above (or `render blueprint launch` after [installing the CLI](https://render.com/docs/cli)). When prompted, enter `EVENTREGISTRY_API_KEY` (and optional `NEWS_API_KEY`).
-
-Or push secrets from local `.env`:
+Run the app on any Linux host with Python 3.12+, your `.env` secrets, and a reverse proxy for HTTPS.
 
 ```bash
-chmod +x scripts/render-env.sh
-./scripts/render-env.sh
+pip install -r requirements.txt
+export $(grep -v '^#' .env | xargs)   # or use systemd EnvironmentFile
+gunicorn --bind 0.0.0.0:5050 --workers 2 --timeout 120 src.web:app
 ```
 
-Everything else is in [`render.yaml`](render.yaml): gunicorn, custom domains, disk, env defaults, auto-deploy on push.
+Set `SITE_URL=https://morethancode.org`, `FLASK_SECRET_KEY`, `EVENTREGISTRY_API_KEY`, `RANK_LLM=0`, `SUMMARY_LLM=0`, and `VIZ_LOAD_ON_STARTUP=0` in the server environment. Put Caddy or nginx in front for TLS, then point GoDaddy DNS at that server’s IP.
 
-### 2) GoDaddy DNS (should already match)
-
-| Type | Name | Value |
-|------|------|--------|
-| **A** | `@` | `216.24.57.1` |
-| **CNAME** | `www` | `ai-labor-monitor.onrender.com` |
-
-Remove GitHub Pages A records (`185.199.*`) and any **AAAA** records.
-
-### 3) Verify
-
-```bash
-curl -sS https://morethancode.org/health
-curl -sS -o /dev/null -w "incidents: %{http_code}\n" https://morethancode.org/incidents
-```
-
-Expected: JSON on `/health`, **200** on `/incidents`.
+Health check: `GET /health` → `{"ok": true, "runtime": "flask"}`.
 
 ### Local dev
 
@@ -136,10 +113,6 @@ static/
   site.css
 .github/workflows/
   ci.yml            Import check on push/PR
-  deploy-render.yml Optional deploy hook on push to main
-render.yaml         Render blueprint (domains, gunicorn, env)
-scripts/
-  render-env.sh     Push .env secrets via Render CLI
 ```
 
 ## Notes
