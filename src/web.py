@@ -53,7 +53,12 @@ def site_url() -> str:
     return os.environ.get("SITE_URL", DEFAULT_MTC_URL).rstrip("/")
 
 
+def static_site() -> bool:
+    return os.environ.get("STATIC_BUILD", "").lower() in ("1", "true", "yes")
+
+
 app.jinja_env.globals["site_url"] = site_url
+app.jinja_env.globals["static_site"] = static_site
 
 
 def _parse_form_date(name: str, default: date) -> date:
@@ -407,7 +412,7 @@ def _is_local_request() -> bool:
 
 @app.route("/", methods=["GET"])
 def index():
-    if _is_local_request():
+    if _is_local_request() or static_site():
         return redirect(url_for("incidents"))
     return redirect(f"{site_url()}/incidents")
 

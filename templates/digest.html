@@ -69,12 +69,17 @@
 
           <div class="search-actions">
             <div class="actions">
+              {% if static_site() %}
+              <button type="button" class="btn btn-primary" disabled title="Run locally for live preview">Preview digest</button>
+              <button type="button" class="btn btn-secondary" disabled title="Run locally for CSV export">Download CSV</button>
+              {% else %}
               <button type="submit" formaction="{{ url_for('preview') }}" class="btn btn-primary" data-action="preview">
                 Preview digest
               </button>
               <button type="submit" formaction="{{ url_for('export_csv') }}" class="btn btn-secondary">
                 Download CSV
               </button>
+              {% endif %}
               <a href="{{ url_for('news') }}" class="btn-link">Reset</a>
             </div>
             <p class="hint">Preview may take 1–2 minutes. Charts and maps are on the

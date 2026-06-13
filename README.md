@@ -76,23 +76,58 @@ python -m src.main --dry-run --from-date 2026-05-01 --to-date 2026-05-23 --count
 python -m src.main --send --count 5
 ```
 
-## Production (optional)
+## Deploy to morethancode.org (GitHub Pages)
 
-Run the app on any Linux host with Python 3.12+, your `.env` secrets, and a reverse proxy for HTTPS.
+The public site is a **static export** of the Flask UI, built on every push to `main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml) and served from GitHub Pages.
+
+### 1) GitHub repo setup
+
+1. In **Settings → Secrets and variables → Actions**, add:
+   - `EVENTREGISTRY_API_KEY` (optional but recommended — embeds dashboard data in the static build)
+   - `NEWS_API_KEY` (optional)
+   - `FLASK_SECRET_KEY` (any random string; unused on static pages but required by the app import)
+2. In **Settings → Pages**, set **Source** to **GitHub Actions** (the workflow configures the rest).
+3. Push to `main` or run **Actions → Deploy GitHub Pages → Run workflow**.
+
+Local static build:
 
 ```bash
-pip install -r requirements.txt
-export $(grep -v '^#' .env | xargs)   # or use systemd EnvironmentFile
-gunicorn --bind 0.0.0.0:5050 --workers 2 --timeout 120 src.web:app
+pip install -r requirements-build.txt
+chmod +x scripts/build_static_site.sh
+SITE_DOMAIN=morethancode.org ./scripts/build_static_site.sh
+python -m http.server -d dist 8080
 ```
 
-Set `SITE_URL=https://morethancode.org`, `FLASK_SECRET_KEY`, `EVENTREGISTRY_API_KEY`, `RANK_LLM=0`, `SUMMARY_LLM=0`, and `VIZ_LOAD_ON_STARTUP=0` in the server environment. Put Caddy or nginx in front for TLS, then point GoDaddy DNS at that server’s IP.
+### 2) GoDaddy DNS (point away from Render)
 
-Health check: `GET /health` → `{"ok": true, "runtime": "flask"}`.
+Remove Render A records (`216.24.57.1`) and any domain forwarding. Add GitHub Pages records:
 
-### Local dev
+| Type | Name | Value |
+|------|------|--------|
+| **A** | `@` | `185.199.108.153` |
+| **A** | `@` | `185.199.109.153` |
+| **A** | `@` | `185.199.110.153` |
+| **A** | `@` | `185.199.111.153` |
+| **CNAME** | `www` | `fourthletter.github.io` |
 
-Use `SITE_URL=http://127.0.0.1:5050` in `.env` so `/` stays on localhost. Production uses `SITE_URL=https://morethancode.org`.
+Remove GitHub Pages parking A records from GoDaddy defaults and any **AAAA** records. In GitHub **Settings → Pages**, set custom domain to `morethancode.org` and enable **Enforce HTTPS** once the certificate is issued.
+
+### 3) Verify
+
+```bash
+curl -sS https://morethancode.org/health.json
+curl -sS -o /dev/null -w "incidents: %{http_code}\n" https://morethancode.org/incidents/
+```
+
+Expected: JSON on `/health.json`, **200** on `/incidents/`. Live search, digest preview, and **Refresh data** require running the app locally (`python -m src.web`).
+
+### Local dev (full interactive app)
+
+```bash
+python -m src.web
+```
+
+Use `SITE_URL=http://127.0.0.1:5050` in `.env` so `/` stays on localhost.
 
 ## Project structure
 
@@ -113,6 +148,10 @@ static/
   site.css
 .github/workflows/
   ci.yml            Import check on push/PR
+  pages.yml         Build static site and deploy to GitHub Pages
+build_static.py     Flask-Frozen export for Pages
+scripts/
+  build_static_site.sh  Build dist/ with CNAME for morethancode.org
 ```
 
 ## Notes

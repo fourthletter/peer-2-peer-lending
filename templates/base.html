@@ -32,6 +32,11 @@
   {% block hero %}{% endblock %}
 
   <div class="site-wrap">
+    {% if static_site() %}
+    <div class="flash info">
+      Static preview on GitHub Pages — run <code>python -m src.web</code> locally for live search and refresh.
+    </div>
+    {% endif %}
     {% with messages = get_flashed_messages(with_categories=true) %}
       {% for category, message in messages %}
         <div class="flash {{ category }}">{{ message }}</div>

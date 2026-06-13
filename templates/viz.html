@@ -20,7 +20,7 @@
     <main>
       <div class="panel viz-panel" id="labor-impact-viz" style="border:2px solid var(--accent-soft);">
         <div class="panel-body" style="padding:1rem 1.1rem;">
-          <form id="viz-form" method="post" action="{{ url_for('load_viz') }}">
+          <form id="viz-form" method="post"{% if not static_site() %} action="{{ url_for('load_viz') }}"{% endif %}>
             <div class="viz-options">
               <div class="field-block span-2">
                 <label>Data date range</label>
@@ -76,7 +76,11 @@
                 </select>
               </div>
               <div class="field-block" style="align-self:end;">
+                {% if static_site() %}
+                <button type="button" class="btn btn-secondary" disabled title="Run locally for live refresh">Refresh data</button>
+                {% else %}
                 <button type="submit" class="btn btn-secondary" data-action="viz">Refresh data</button>
+                {% endif %}
               </div>
             </div>
           </form>

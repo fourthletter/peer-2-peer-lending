@@ -181,6 +181,7 @@ button:disabled, .btn-loading { opacity: 0.6; cursor: wait; }
 .flash { padding: 0.7rem 1rem; border-radius: 8px; margin-bottom: 1rem; font-size: 0.9rem; border: 1px solid transparent; }
 .flash.success { background: var(--success-soft); color: var(--success); border-color: #bfe3cb; }
 .flash.error { background: var(--error-soft); color: var(--error); border-color: #f3c9c9; }
+.flash.info { background: var(--accent-soft); color: var(--brand); border-color: var(--border); }
 
 /* ---- Results toolbar ---- */
 .results-bar {
