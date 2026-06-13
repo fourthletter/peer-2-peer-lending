@@ -18,7 +18,8 @@ DIST = ROOT / "dist"
 
 app.url_map.strict_slashes = False
 app.config["FREEZER_DESTINATION"] = str(DIST)
-app.config["FREEZER_RELATIVE_URLS"] = True
+# Root-relative URLs (/news, /static/...) so nav and assets work from /incidents/, etc.
+app.config["FREEZER_RELATIVE_URLS"] = False
 app.config["FREEZER_REMOVE_EXTRA_FILES"] = False
 app.config["FREEZER_IGNORE_MIMETYPE_WARNINGS"] = True
 
