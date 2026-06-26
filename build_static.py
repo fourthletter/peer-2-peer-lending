@@ -56,11 +56,6 @@ def incidents():
 
 
 @freezer.register_generator
-def news():
-    yield "/news"
-
-
-@freezer.register_generator
 def index():
     yield "/"
 
@@ -69,7 +64,7 @@ if __name__ == "__main__":
     if os.environ.get("WARM_VIZ_CACHE", "1") == "1":
         _maybe_warm_viz_cache()
     freezer.freeze()
-    for name in ("incidents", "news", "narratives"):
+    for name in ("incidents", "narratives"):
         src = DIST / name
         if src.is_file():
             tmp = DIST / f"_{name}.html"
@@ -77,9 +72,14 @@ if __name__ == "__main__":
             page_dir = DIST / name
             page_dir.mkdir(exist_ok=True)
             tmp.rename(page_dir / "index.html")
-    for stray in (DIST / "health", DIST / "projects"):
+    for stray in (DIST / "health", DIST / "projects", DIST / "news"):
         if stray.is_file():
             stray.unlink()
+    news_dir = DIST / "news"
+    if news_dir.is_dir():
+        import shutil
+
+        shutil.rmtree(news_dir)
     index_redirect = DIST / "index.html"
     if not index_redirect.is_file():
         incidents_index = DIST / "incidents" / "index.html"

@@ -1,9 +1,10 @@
 # MoreThanCode AI & Labor Monitor
 
-Part of [MoreThanCode.org](https://morethancode.org/). Tracks **AI's impact on the labor market** with two tools:
+Part of [MoreThanCode.org](https://morethancode.org/). Tracks **AI's impact on the labor market**:
 
-- **Labor Impact Dashboard** (`/incidents`) — map and charts of labor-impact events from Event Registry (Jan 2020–present)
-- **News aggregator** (`/news`) — discover, rank, and preview a digest of relevant articles
+- **Labor Impact Dashboard** (`/incidents`) — map and charts of labor-impact events (on [morethancode.org](https://morethancode.org))
+- **Narrative approaches** (`/narratives`) — case studies on AI & labor storytelling (on morethancode.org)
+- **News aggregator** (`/news`) — discover, rank, and preview digests (**local dev and CLI only**, not on morethancode.org)
 
 Use the **web UI** to pick a date range and article count, or run the CLI with defaults (last 7 days, top 5).
 
@@ -78,29 +79,15 @@ python -m src.main --send --count 5
 
 ## Deploy to morethancode.org (GitHub Pages)
 
-The public site is a **static export** of the Flask UI, built on every push to `main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml) and served from GitHub Pages.
+The public site is a **static export** of the dashboard and narratives (no News aggregator). Built on push to `main` by [`.github/workflows/pages.yml`](.github/workflows/pages.yml).
 
 ### 1) GitHub repo setup
 
-1. In **Settings → Secrets and variables → Actions**, add:
-   - `EVENTREGISTRY_API_KEY` (optional but recommended — embeds dashboard data in the static build)
-   - `NEWS_API_KEY` (optional)
-   - `FLASK_SECRET_KEY` (any random string; unused on static pages but required by the app import)
-2. In **Settings → Pages**, set **Source** to **GitHub Actions** (the workflow configures the rest).
-3. Push to `main` or run **Actions → Deploy GitHub Pages → Run workflow**.
+1. In **Settings → Secrets and variables → Actions**, add `EVENTREGISTRY_API_KEY` (embeds dashboard data in the static build).
+2. Optional: `NEWS_API_KEY`, `FLASK_SECRET_KEY` (unused on static pages but available for local builds).
+3. **Settings → Pages** → Source: **GitHub Actions**.
 
-Local static build:
-
-```bash
-pip install -r requirements-build.txt
-chmod +x scripts/build_static_site.sh
-SITE_DOMAIN=morethancode.org ./scripts/build_static_site.sh
-python -m http.server -d dist 8080
-```
-
-### 2) GoDaddy DNS (point away from Render)
-
-Remove Render A records (`216.24.57.1`) and any domain forwarding. Add GitHub Pages records:
+### 2) GoDaddy DNS (GitHub Pages)
 
 | Type | Name | Value |
 |------|------|--------|
@@ -110,8 +97,6 @@ Remove Render A records (`216.24.57.1`) and any domain forwarding. Add GitHub Pa
 | **A** | `@` | `185.199.111.153` |
 | **CNAME** | `www` | `fourthletter.github.io` |
 
-Remove GitHub Pages parking A records from GoDaddy defaults and any **AAAA** records. In GitHub **Settings → Pages**, set custom domain to `morethancode.org` and enable **Enforce HTTPS** once the certificate is issued.
-
 ### 3) Verify
 
 ```bash
@@ -119,12 +104,15 @@ curl -sS https://morethancode.org/health.json
 curl -sS -o /dev/null -w "incidents: %{http_code}\n" https://morethancode.org/incidents/
 ```
 
-Expected: JSON on `/health.json`, **200** on `/incidents/`. Live search, digest preview, and **Refresh data** require running the app locally (`python -m src.web`).
+Expected: JSON on `/health.json`, **200** on `/incidents/`. `/news` is not published on morethancode.org.
 
-### Local dev (full interactive app)
+### News aggregator (local only)
 
 ```bash
 python -m src.web
+# → http://127.0.0.1:5050/news
+
+python -m src.main --dry-run
 ```
 
 Use `SITE_URL=http://127.0.0.1:5050` in `.env` so `/` stays on localhost.
@@ -148,8 +136,8 @@ static/
   site.css
 .github/workflows/
   ci.yml            Import check on push/PR
-  pages.yml         Build static site and deploy to GitHub Pages
-build_static.py     Flask-Frozen export for Pages
+  pages.yml         Build static site (dashboard + narratives) for GitHub Pages
+build_static.py     Flask-Frozen export (excludes /news)
 scripts/
   build_static_site.sh  Build dist/ with CNAME for morethancode.org
 ```
