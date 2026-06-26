@@ -42,13 +42,10 @@
                   </div>
                 </div>
               </div>
-              {% if not static_site() %}
               <div class="field-block span-2">
-                <label>Regions to query</label>
-                <p class="hint" style="margin-top:0;margin-bottom:0.5rem;">
-                  Used when you click <strong>Refresh data</strong> — chooses which areas to pull from news APIs.
-                </p>
-                <div class="region-grid">
+                <label>Geographic regions</label>
+                <p class="field-hint">Filters maps, charts, and articles.{% if not static_site() %} Click <strong>Refresh data</strong> to re-pull news for the selected regions.{% endif %}</p>
+                <div class="region-grid" id="geographic-regions">
                   {% for region_id, region_label in thematic_options %}
                   <label class="region-option">
                     <input type="checkbox" name="geographic_regions" value="{{ region_id }}"
@@ -58,7 +55,6 @@
                   {% endfor %}
                 </div>
               </div>
-              {% endif %}
               <div class="field-block">
                 <label for="viz_extra_keywords">Focus keywords</label>
                 <input type="search" id="viz_extra_keywords" name="extra_keywords"
@@ -91,17 +87,10 @@
             </div>
           </form>
 
-          <div id="viz-client-filters" class="viz-options viz-view-filters" style="border-bottom:none;padding-bottom:0;">
+          <div id="viz-client-filters" class="viz-options" style="border-bottom:none;padding-bottom:0;">
             <div class="field-block span-2">
-              <label>Filter loaded data</label>
-              <p class="hint" style="margin-top:0;margin-bottom:0.5rem;">
-                Narrows charts and the article table below — does not fetch new articles.
-              </p>
-              <div class="row" style="grid-template-columns:1fr 1fr 1fr;">
-                <div>
-                  <span class="glabel" style="display:block;margin-bottom:0.3rem;">Geography</span>
-                  <div id="filter-regions" class="filter-chips"></div>
-                </div>
+              <label>Filter displayed incidents</label>
+              <div class="row" style="grid-template-columns:1fr 1fr;">
                 <div>
                   <span class="glabel" style="display:block;margin-bottom:0.3rem;">Industry</span>
                   <div id="filter-industries" class="filter-chips"></div>
@@ -131,7 +120,7 @@
               <p class="map-legend" id="map-legend">Size = incident count · Color = AI incident type · click for summary</p>
               <div class="map-color-legend" id="map-color-legend"></div>
             </div>
-            <div class="chart-box"><h4>By geography</h4><canvas id="chart-region"></canvas></div>
+            <div class="chart-box"><h4>By region</h4><canvas id="chart-region"></canvas></div>
             <div class="chart-box"><h4>By industry</h4><canvas id="chart-industry"></canvas></div>
             <div class="chart-box"><h4>By AI incident type</h4><canvas id="chart-ai"></canvas></div>
           </div>
@@ -184,9 +173,15 @@
 {% endblock %}
 {% block scripts %}
   <script type="application/json" id="us-state-centroids-data">{{ us_state_centroids | tojson }}</script>
+  <script type="application/json" id="region-theme-labels">{{ region_theme_labels | tojson }}</script>
   <script>
     (function () {
       const PALETTE = ["#1452cc", "#0f766e", "#7c3aed", "#b45309", "#be123c", "#0369a1", "#4d7c0f", "#9333ea", "#0e7490", "#a21caf"];
+      let regionThemeLabels = {};
+      try {
+        const regionEl = document.getElementById("region-theme-labels");
+        if (regionEl) regionThemeLabels = JSON.parse(regionEl.textContent);
+      } catch (e) { /* ignore */ }
       let stateCentroids = {};
       try {
         const centEl = document.getElementById("us-state-centroids-data");
@@ -280,6 +275,36 @@
           .slice(0, 12);
       }
 
+      function selectedGeographicRegionIds() {
+        const ids = [];
+        document.querySelectorAll('input[name="geographic_regions"]:checked').forEach(function (cb) {
+          ids.push(cb.value);
+        });
+        return ids;
+      }
+
+      function selectedGeographicLabels() {
+        const ids = selectedGeographicRegionIds();
+        if (!ids.length || ids.indexOf("global") >= 0) return null;
+        const labels = new Set();
+        ids.forEach(function (id) {
+          if (regionThemeLabels[id]) labels.add(regionThemeLabels[id]);
+        });
+        return labels.size ? labels : null;
+      }
+
+      function recordMatchesGeographicRegion(record, labels) {
+        if (!labels) return true;
+        const region = record.region || "";
+        if (labels.has(region)) return true;
+        if (labels.has("Global") && (
+          region === "Global majority" ||
+          region === "Unspecified" ||
+          region.indexOf("Global") === 0
+        )) return true;
+        return false;
+      }
+
       function getActiveFilters() {
         function selected(containerId) {
           const out = new Set();
@@ -292,7 +317,7 @@
         }
         const stateSel = document.getElementById("filter-us-state");
         return {
-          regions: selected("filter-regions"),
+          geoLabels: selectedGeographicLabels(),
           industries: selected("filter-industries"),
           ai: selected("filter-ai"),
           usState: stateSel ? stateSel.value : "",
@@ -306,7 +331,7 @@
             if ((r.country || "") !== "United States") return false;
             if ((r.us_state || "") !== f.usState) return false;
           }
-          if (f.regions.size && !f.regions.has(r.region)) return false;
+          if (!recordMatchesGeographicRegion(r, f.geoLabels)) return false;
           if (f.industries.size && !f.industries.has(r.industry_type)) return false;
           if (f.ai.size && !f.ai.has(r.ai_incident_type)) return false;
           return true;
@@ -600,16 +625,13 @@
         }
         if (!allRecords.length) return;
 
-        const regions = [], industries = [], aiTypes = [];
+        const industries = [], aiTypes = [];
         allRecords.forEach(function (r) {
-          if (regions.indexOf(r.region) < 0) regions.push(r.region);
           if (industries.indexOf(r.industry_type) < 0) industries.push(r.industry_type);
           if (aiTypes.indexOf(r.ai_incident_type) < 0) aiTypes.push(r.ai_incident_type);
         });
-        regions.sort();
         industries.sort();
         aiTypes.sort();
-        buildFilterChips("filter-regions", regions, "fr");
         buildFilterChips("filter-industries", industries, "fi");
         buildFilterChips("filter-ai", aiTypes, "fa");
 
@@ -632,6 +654,9 @@
         if (colorSel) colorSel.addEventListener("change", renderDashboard);
         const stateFilter = document.getElementById("filter-us-state");
         if (stateFilter) stateFilter.addEventListener("change", renderDashboard);
+        document.querySelectorAll('input[name="geographic_regions"]').forEach(function (cb) {
+          cb.addEventListener("change", renderDashboard);
+        });
         renderDashboard();
       }
 

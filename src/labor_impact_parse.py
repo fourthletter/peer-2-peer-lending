@@ -69,6 +69,15 @@ _BUCKET_LABELS = {
     "unknown": "Unspecified",
 }
 
+_DISCOVERY_REGION = {
+    "eventregistry:creative": "Global (creative / voice)",
+    "eventregistry:workforce": "Global (informal & platform work)",
+    "eventregistry:labor": "Global (labor)",
+    "eventregistry:ai": "Global (broad AI)",
+    "eventregistry:regional": "Regional focus",
+    "eventregistry:global": "Global",
+}
+
 _JOB_RULES: list[tuple[str, tuple[str, ...]]] = [
     ("Voice & creative work", ("voice actor", "voice acting", "voiceover", "unauthorized ai voice", "plagiarism", "hollywood", "bollywood")),
     ("Garment & textile workers", ("garment", "textile", "sweatshop", "apparel", "fashion industry", "counterfeit fashion")),
@@ -230,7 +239,7 @@ def _region_from_candidate(candidate: ArticleCandidate | RankedArticle | dict) -
         return thematic
 
     bucket = geographic_bucket(pseudo)
-    if bucket in _BUCKET_LABELS and bucket != "global_majority":
+    if bucket in _BUCKET_LABELS:
         return _BUCKET_LABELS[bucket]
 
     for theme_id, region in THEMATIC_REGIONS.items():
@@ -239,12 +248,11 @@ def _region_from_candidate(candidate: ArticleCandidate | RankedArticle | dict) -
         if country in region.countries:
             return region.label
 
-    if bucket == "global_majority":
-        return "Global"
-
     search = (pseudo.search_region or "").lower()
-    if search:
-        return "Global"
+    if any(search.startswith(key) for key in _DISCOVERY_REGION):
+        return THEMATIC_REGIONS["global"].label
+    if search.startswith("eventregistry:"):
+        return THEMATIC_REGIONS["global"].label
 
     return "Unspecified"
 

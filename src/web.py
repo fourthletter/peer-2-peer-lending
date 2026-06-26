@@ -314,6 +314,11 @@ def _template_context(
         "viz_result": viz_result,
         "form_values": form_values,
         "thematic_options": thematic_options,
+        "region_theme_labels": {
+            tid: THEMATIC_REGIONS[tid].label
+            for tid in UI_REGION_ORDER
+            if tid in THEMATIC_REGIONS
+        },
         "selected_regions": selected_regions,
         "extra_keywords": extra_keywords,
         "date_from": date_from,
