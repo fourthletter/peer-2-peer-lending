@@ -152,14 +152,13 @@
             <table class="parse-table parse-table-articles" id="articles-table">
               <thead>
                 <tr>
-                  <th>Date</th>
-                  <th>Region</th>
-                  <th>Country</th>
-                  <th>State</th>
-                  <th>Industry</th>
-                  <th>AI incident</th>
-                  <th>Headline</th>
-                  <th>Source</th>
+                  <th class="sortable" scope="col" data-sort-key="date" aria-sort="descending">Date</th>
+                  <th class="sortable" scope="col" data-sort-key="region">Region</th>
+                  <th class="sortable" scope="col" data-sort-key="country">Country</th>
+                  <th class="sortable" scope="col" data-sort-key="industry_type">Industry</th>
+                  <th class="sortable" scope="col" data-sort-key="ai_incident_type">AI incident</th>
+                  <th class="sortable" scope="col" data-sort-key="headline">Headline</th>
+                  <th class="sortable" scope="col" data-sort-key="source">Source</th>
                 </tr>
               </thead>
               <tbody id="articles-table-body"></tbody>
@@ -196,6 +195,7 @@
       let incidentMap = null;
       let incidentLayer = null;
       let colorIndex = {};
+      let articleSort = { key: "date", dir: "desc" };
 
       function fmt(d) { return d.toISOString().slice(0, 10); }
 
@@ -547,7 +547,6 @@
             r.headline || "",
             r.region || "",
             r.country || "",
-            r.us_state || "",
             r.industry_type || "",
             r.ai_incident_type || "",
             r.source || "",
@@ -556,12 +555,41 @@
         });
       }
 
+      function sortValue(record, key) {
+        return String(record[key] || "").toLowerCase();
+      }
+
+      function sortArticleRecords(records) {
+        const key = articleSort.key;
+        const dir = articleSort.dir === "asc" ? 1 : -1;
+        return records.slice().sort(function (a, b) {
+          const av = sortValue(a, key);
+          const bv = sortValue(b, key);
+          if (av < bv) return -1 * dir;
+          if (av > bv) return 1 * dir;
+          return 0;
+        });
+      }
+
+      function updateArticleSortHeaders() {
+        document.querySelectorAll("#articles-table th.sortable").forEach(function (th) {
+          const key = th.getAttribute("data-sort-key");
+          if (key === articleSort.key) {
+            th.setAttribute("aria-sort", articleSort.dir === "asc" ? "ascending" : "descending");
+            th.dataset.sortDir = articleSort.dir;
+          } else {
+            th.setAttribute("aria-sort", "none");
+            delete th.dataset.sortDir;
+          }
+        });
+      }
+
       function updateArticlesTable(records) {
         const body = document.getElementById("articles-table-body");
         const meta = document.getElementById("article-explore-meta");
         if (!body) return;
 
-        const shown = filterArticlesForTable(records);
+        const shown = sortArticleRecords(filterArticlesForTable(records));
         body.innerHTML = shown.map(function (r) {
           const headline = escapeHtml(r.headline || "");
           const title = headline.length > 120 ? headline.slice(0, 120) + "…" : headline;
@@ -569,10 +597,12 @@
             ? "<a href=\"" + escapeHtml(r.url) + "\" target=\"_blank\" rel=\"noopener\">" + title + "</a>"
             : title;
           return "<tr><td>" + escapeHtml(r.date || "") + "</td><td>" + escapeHtml(r.region || "") +
-            "</td><td>" + escapeHtml(r.country || "") + "</td><td>" + escapeHtml(r.us_state || "") +
-            "</td><td>" + escapeHtml(r.industry_type || "") + "</td><td>" + escapeHtml(r.ai_incident_type || "") +
+            "</td><td>" + escapeHtml(r.country || "") + "</td><td>" + escapeHtml(r.industry_type || "") +
+            "</td><td>" + escapeHtml(r.ai_incident_type || "") +
             "</td><td class=\"headline-cell\">" + link + "</td><td>" + escapeHtml(r.source || "") + "</td></tr>";
         }).join("");
+
+        updateArticleSortHeaders();
 
         if (meta) {
           const q = articleSearchQuery();
@@ -591,14 +621,13 @@
       }
 
       function downloadArticlesCsv(records) {
-        const rows = filterArticlesForTable(records);
-        const header = ["date", "region", "country", "us_state", "industry", "ai_incident_type", "headline", "url", "source"];
+        const rows = sortArticleRecords(filterArticlesForTable(records));
+        const header = ["date", "region", "country", "industry", "ai_incident_type", "headline", "url", "source"];
         const lines = rows.map(function (r) {
           return [
             r.date || "",
             r.region || "",
             r.country || "",
-            r.us_state || "",
             r.industry_type || "",
             r.ai_incident_type || "",
             r.headline || "",
@@ -641,6 +670,19 @@
             updateArticlesTable(filterRecords(allRecords));
           });
         }
+        document.querySelectorAll("#articles-table th.sortable").forEach(function (th) {
+          th.addEventListener("click", function () {
+            const key = th.getAttribute("data-sort-key");
+            if (!key) return;
+            if (articleSort.key === key) {
+              articleSort.dir = articleSort.dir === "asc" ? "desc" : "asc";
+            } else {
+              articleSort.key = key;
+              articleSort.dir = key === "date" ? "desc" : "asc";
+            }
+            updateArticlesTable(filterRecords(allRecords));
+          });
+        });
         const csvBtn = document.getElementById("download-articles-csv");
         if (csvBtn) {
           csvBtn.addEventListener("click", function (event) {

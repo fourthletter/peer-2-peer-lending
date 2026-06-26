@@ -361,7 +361,15 @@ table.parse-table tr:nth-child(even) { background: #fafbfd; }
 .article-search-wrap input { width: 100%; margin-top: 0.25rem; }
 .article-explore-meta { margin: 0; flex: 1 1 200px; font-size: 0.9rem; color: var(--muted); }
 .btn-sm { font-size: 0.82rem; padding: 0.35rem 0.65rem; }
-.parse-table-articles { min-width: 1020px; }
+.parse-table-articles { min-width: 900px; }
+.parse-table-articles th.sortable {
+  cursor: pointer;
+  user-select: none;
+  white-space: nowrap;
+}
+.parse-table-articles th.sortable:hover { background: #eef2f8; }
+.parse-table-articles th.sortable[data-sort-dir="asc"]::after { content: " ▲"; font-size: 0.7em; opacity: 0.75; }
+.parse-table-articles th.sortable[data-sort-dir="desc"]::after { content: " ▼"; font-size: 0.7em; opacity: 0.75; }
 .parse-table-articles .headline-cell { max-width: 360px; }
 .parse-table-articles .headline-cell a { color: var(--brand); text-decoration: none; }
 .parse-table-articles .headline-cell a:hover { text-decoration: underline; }

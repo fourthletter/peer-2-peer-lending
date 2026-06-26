@@ -92,6 +92,11 @@ def _snippet_summary(article: RankedArticle) -> str:
     return f"{headline}. {raw}"
 
 
+def snippet_summary(article: RankedArticle) -> str:
+    """Short blurb from headline and discovery snippet (no LLM)."""
+    return _snippet_summary(article)
+
+
 def _headline_fallback(article: RankedArticle) -> str:
     parts = [article.headline.rstrip(".")]
     if article.reason:
