@@ -11,7 +11,7 @@
     <p>
       Maps and charts of reported AI–labor incidents by country, sector, and type.
       Circle size shows story count per country; filter by US state, region, or date range (Jan 2020 – present).
-      Browse the parsed incidents table below or download the filtered list as CSV.
+      Browse articles below or download the filtered list as CSV.
     </p>
 </section>
 {% endblock %}
@@ -139,12 +139,12 @@
       </div>
 
       {% if viz_result and viz_result.viz.get('total', 0) > 0 %}
-      <details class="panel" id="parsed-incidents-table" style="margin-top:0;" open>
-        <summary class="panel-head" style="cursor:pointer;list-style:none;">Parsed incidents table</summary>
+      <details class="panel" id="article-explorer" style="margin-top:0;" open>
+        <summary class="panel-head" style="cursor:pointer;list-style:none;">Explore articles</summary>
         <div class="panel-body">
           <div class="article-explore-toolbar">
             <label class="article-search-wrap">
-              <span class="glabel">Search incidents</span>
+              <span class="glabel">Search headlines</span>
               <input type="search" id="article-search" placeholder="Filter by keyword…" autocomplete="off">
             </label>
             <p class="article-explore-meta" id="article-explore-meta"></p>
@@ -543,8 +543,8 @@
         if (meta) {
           const q = articleSearchQuery();
           meta.textContent = q
-            ? shown.length + " of " + records.length + " incidents match your filters and search"
-            : shown.length + " incident" + (shown.length === 1 ? "" : "s") + " (filtered view)";
+            ? shown.length + " of " + records.length + " articles match your filters and search"
+            : shown.length + " article" + (shown.length === 1 ? "" : "s") + " (filtered view)";
         }
       }
 
@@ -576,7 +576,7 @@
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = "labor-impact-incidents-" + new Date().toISOString().slice(0, 10) + ".csv";
+        anchor.download = "labor-impact-articles-" + new Date().toISOString().slice(0, 10) + ".csv";
         anchor.click();
         URL.revokeObjectURL(url);
       }
