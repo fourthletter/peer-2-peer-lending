@@ -11,7 +11,7 @@
     <p>
       Maps and charts of reported AI–labor incidents by country, sector, and type.
       Circle size shows story count per country; filter by US state, region, or date range (Jan 2020 – present).
-      Browse articles below or download the filtered list as CSV.
+      Browse the parsed incidents table below or download the filtered list as CSV.
     </p>
 </section>
 {% endblock %}
@@ -139,12 +139,12 @@
       </div>
 
       {% if viz_result and viz_result.viz.get('total', 0) > 0 %}
-      <details class="panel" id="article-explorer" style="margin-top:0;" open>
-        <summary class="panel-head" style="cursor:pointer;list-style:none;">Explore articles</summary>
+      <details class="panel" id="parsed-incidents-table" style="margin-top:0;" open>
+        <summary class="panel-head" style="cursor:pointer;list-style:none;">Parsed incidents table</summary>
         <div class="panel-body">
           <div class="article-explore-toolbar">
             <label class="article-search-wrap">
-              <span class="glabel">Search headlines</span>
+              <span class="glabel">Search incidents</span>
               <input type="search" id="article-search" placeholder="Filter by keyword…" autocomplete="off">
             </label>
             <p class="article-explore-meta" id="article-explore-meta"></p>
@@ -155,11 +155,12 @@
               <thead>
                 <tr>
                   <th>Date</th>
-                  <th>Headline</th>
                   <th>Region</th>
                   <th>Country</th>
+                  <th>State</th>
                   <th>Industry</th>
                   <th>AI incident</th>
+                  <th>Headline</th>
                   <th>Source</th>
                 </tr>
               </thead>
@@ -512,6 +513,7 @@
             r.headline || "",
             r.region || "",
             r.country || "",
+            r.us_state || "",
             r.industry_type || "",
             r.ai_incident_type || "",
             r.source || "",
@@ -528,21 +530,21 @@
         const shown = filterArticlesForTable(records);
         body.innerHTML = shown.map(function (r) {
           const headline = escapeHtml(r.headline || "");
-          const title = headline.length > 140 ? headline.slice(0, 140) + "…" : headline;
+          const title = headline.length > 120 ? headline.slice(0, 120) + "…" : headline;
           const link = r.url
             ? "<a href=\"" + escapeHtml(r.url) + "\" target=\"_blank\" rel=\"noopener\">" + title + "</a>"
             : title;
-          return "<tr><td>" + escapeHtml(r.date || "") + "</td><td class=\"headline-cell\">" + link +
-            "</td><td>" + escapeHtml(r.region || "") + "</td><td>" + escapeHtml(r.country || "") +
+          return "<tr><td>" + escapeHtml(r.date || "") + "</td><td>" + escapeHtml(r.region || "") +
+            "</td><td>" + escapeHtml(r.country || "") + "</td><td>" + escapeHtml(r.us_state || "") +
             "</td><td>" + escapeHtml(r.industry_type || "") + "</td><td>" + escapeHtml(r.ai_incident_type || "") +
-            "</td><td>" + escapeHtml(r.source || "") + "</td></tr>";
+            "</td><td class=\"headline-cell\">" + link + "</td><td>" + escapeHtml(r.source || "") + "</td></tr>";
         }).join("");
 
         if (meta) {
           const q = articleSearchQuery();
           meta.textContent = q
-            ? shown.length + " of " + records.length + " articles match your filters and search"
-            : shown.length + " article" + (shown.length === 1 ? "" : "s") + " (filtered view)";
+            ? shown.length + " of " + records.length + " incidents match your filters and search"
+            : shown.length + " incident" + (shown.length === 1 ? "" : "s") + " (filtered view)";
         }
       }
 
@@ -556,16 +558,17 @@
 
       function downloadArticlesCsv(records) {
         const rows = filterArticlesForTable(records);
-        const header = ["date", "headline", "url", "region", "country", "industry", "ai_incident_type", "source"];
+        const header = ["date", "region", "country", "us_state", "industry", "ai_incident_type", "headline", "url", "source"];
         const lines = rows.map(function (r) {
           return [
             r.date || "",
-            r.headline || "",
-            r.url || "",
             r.region || "",
             r.country || "",
+            r.us_state || "",
             r.industry_type || "",
             r.ai_incident_type || "",
+            r.headline || "",
+            r.url || "",
             r.source || "",
           ].map(csvEscape).join(",");
         });
@@ -573,7 +576,7 @@
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = "labor-impact-articles-" + new Date().toISOString().slice(0, 10) + ".csv";
+        anchor.download = "labor-impact-incidents-" + new Date().toISOString().slice(0, 10) + ".csv";
         anchor.click();
         URL.revokeObjectURL(url);
       }
