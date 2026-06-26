@@ -364,6 +364,18 @@ table.parse-table tr:nth-child(even) { background: #fafbfd; }
 .parse-table-articles .headline-cell { max-width: 360px; }
 .parse-table-articles .headline-cell a { color: var(--brand); text-decoration: none; }
 .parse-table-articles .headline-cell a:hover { text-decoration: underline; }
+
+.viz-view-filters {
+  margin-top: 0.75rem;
+  padding-top: 0.85rem;
+  border-top: 1px solid var(--border);
+}
+.methodology-body h3 { margin: 1.5rem 0 0.5rem; color: var(--brand); }
+.methodology-body h3:first-child { margin-top: 0; }
+.methodology-body h4 { margin: 1rem 0 0.35rem; font-size: 0.95rem; }
+.methodology-body ol, .methodology-body ul { margin: 0.5rem 0 0.75rem 1.25rem; }
+.methodology-body li { margin-bottom: 0.35rem; }
+.methodology-table { margin-top: 0.75rem; }
 .digest-flag { color: var(--success); font-weight: 600; }
 
 /* ---- Narrative approaches portfolio ---- */

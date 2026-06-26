@@ -12,6 +12,7 @@
       Maps and charts of reported AI–labor incidents by country, sector, and type.
       Circle size shows story count per country; filter by US state, region, or date range (Jan 2020 – present).
       Browse articles below or download the filtered list as CSV.
+      <a href="{{ url_for('methodology') }}">How incidents are documented</a> (sources, timespan, limitations).
     </p>
 </section>
 {% endblock %}
@@ -41,8 +42,12 @@
                   </div>
                 </div>
               </div>
+              {% if not static_site() %}
               <div class="field-block span-2">
-                <label>Discovery regions (data pull)</label>
+                <label>Regions to query</label>
+                <p class="hint" style="margin-top:0;margin-bottom:0.5rem;">
+                  Used when you click <strong>Refresh data</strong> — chooses which areas to pull from news APIs.
+                </p>
                 <div class="region-grid">
                   {% for region_id, region_label in thematic_options %}
                   <label class="region-option">
@@ -53,6 +58,7 @@
                   {% endfor %}
                 </div>
               </div>
+              {% endif %}
               <div class="field-block">
                 <label for="viz_extra_keywords">Focus keywords</label>
                 <input type="search" id="viz_extra_keywords" name="extra_keywords"
@@ -85,12 +91,15 @@
             </div>
           </form>
 
-          <div id="viz-client-filters" class="viz-options" style="border-bottom:none;padding-bottom:0;">
+          <div id="viz-client-filters" class="viz-options viz-view-filters" style="border-bottom:none;padding-bottom:0;">
             <div class="field-block span-2">
-              <label>Filter displayed incidents (client-side)</label>
+              <label>Filter loaded data</label>
+              <p class="hint" style="margin-top:0;margin-bottom:0.5rem;">
+                Narrows charts and the article table below — does not fetch new articles.
+              </p>
               <div class="row" style="grid-template-columns:1fr 1fr 1fr;">
                 <div>
-                  <span class="glabel" style="display:block;margin-bottom:0.3rem;">Region</span>
+                  <span class="glabel" style="display:block;margin-bottom:0.3rem;">Geography</span>
                   <div id="filter-regions" class="filter-chips"></div>
                 </div>
                 <div>
@@ -122,7 +131,7 @@
               <p class="map-legend" id="map-legend">Size = incident count · Color = AI incident type · click for summary</p>
               <div class="map-color-legend" id="map-color-legend"></div>
             </div>
-            <div class="chart-box"><h4>By region</h4><canvas id="chart-region"></canvas></div>
+            <div class="chart-box"><h4>By geography</h4><canvas id="chart-region"></canvas></div>
             <div class="chart-box"><h4>By industry</h4><canvas id="chart-industry"></canvas></div>
             <div class="chart-box"><h4>By AI incident type</h4><canvas id="chart-ai"></canvas></div>
           </div>

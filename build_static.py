@@ -56,6 +56,11 @@ def incidents():
 
 
 @freezer.register_generator
+def methodology():
+    yield "/methodology"
+
+
+@freezer.register_generator
 def index():
     yield "/"
 
@@ -64,7 +69,7 @@ if __name__ == "__main__":
     if os.environ.get("WARM_VIZ_CACHE", "1") == "1":
         _maybe_warm_viz_cache()
     freezer.freeze()
-    for name in ("incidents", "narratives"):
+    for name in ("incidents", "narratives", "methodology"):
         src = DIST / name
         if src.is_file():
             tmp = DIST / f"_{name}.html"

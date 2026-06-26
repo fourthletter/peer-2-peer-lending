@@ -360,6 +360,11 @@ def narratives():
     )
 
 
+@app.route("/methodology", methods=["GET"])
+def methodology():
+    return render_template("methodology.html", active_tab="methodology")
+
+
 def _viz_page_context(
     *,
     form_values=None,

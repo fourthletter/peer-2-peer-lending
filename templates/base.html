@@ -21,6 +21,8 @@
       <nav class="site-nav" aria-label="Main">
         <a class="site-tab{% if active_tab == 'incidents' %} active{% endif %}"
           href="{{ url_for('incidents') }}">Labor Impact Dashboard</a>
+        <a class="site-tab{% if active_tab == 'methodology' %} active{% endif %}"
+          href="{{ url_for('methodology') }}">Methodology</a>
         {% if not static_site() %}
         <a class="site-tab{% if active_tab == 'news' %} active{% endif %}"
           href="{{ url_for('news') }}">News aggregator</a>

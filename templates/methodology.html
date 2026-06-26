@@ -1,0 +1,112 @@
+{% extends "base.html" %}
+{% block title %}Methodology — MoreThanCode{% endblock %}
+
+{% block hero %}
+<section class="intro">
+  <h2>Methodology</h2>
+  <p>
+    How the Labor Impact Dashboard discovers, classifies, and displays AI–labor incidents
+    (timespan, sources, regional focus, and limitations).
+  </p>
+</section>
+{% endblock %}
+
+{% block content %}
+<div class="layout layout-single">
+  <main class="panel">
+    <div class="panel-body methodology-body">
+
+      <h3>Purpose</h3>
+      <p>
+        The <a href="{{ url_for('incidents') }}">Labor Impact Dashboard</a> tracks
+        <strong>reported news</strong> about artificial intelligence and its effects on work:
+        layoffs, automation, platform labor, creative rights, unions, policy, and sector change.
+        It is a monitoring tool, not a complete census. Each row in
+        <strong>Explore articles</strong> is one news URL that matched discovery and was parsed
+        into structured fields.
+      </p>
+
+      <h3>Timespan</h3>
+      <ul>
+        <li><strong>Default:</strong> January 1, 2020 through today.</li>
+        <li><strong>Floor:</strong> Incidents before 2020 are excluded.</li>
+        <li><strong>On the dashboard:</strong> Adjust the date range or use presets (last week, Jan 2020 – now, etc.).</li>
+        <li><strong>On morethancode.org:</strong> Data is embedded when the site is built and redeployed; use
+          <code>python -m src.web</code> locally and click <strong>Refresh data</strong> for a live pull.</li>
+      </ul>
+
+      <h3>What counts as an incident</h3>
+      <p>An incident is a single news article that:</p>
+      <ol>
+        <li>Was found by an enabled source (below).</li>
+        <li>Has a publication date inside your selected window.</li>
+        <li>Is deduplicated by URL (one row per story).</li>
+      </ol>
+      <p>
+        There is no manual editorial review on the dashboard pipeline. Tags come from headlines,
+        snippets, Event Registry concepts, and keyword rules.
+      </p>
+
+      <h3>Data sources</h3>
+      <p>Discovery merges several batches in round-robin order so regional stories are not crowded out.</p>
+
+      <h4>Event Registry (primary)</h4>
+      <p>
+        Requires an API key at build time. Queries combine <em>Artificial intelligence</em> with
+        labor concepts (employment, layoffs, workforce, automation, gig economy, etc.). Additional pulls
+        target Africa, Latin America, and the Middle East by publisher country. Long histories use a
+        per-year cache plus a recent-year live query.
+      </p>
+
+      <h4>NewsAPI.org (supplement)</h4>
+      <p>
+        When configured, searches regional outlet bundles: Africa, Latin America, Middle East,
+        global-majority publishers, and Asia. Subject to daily rate limits on the free tier.
+      </p>
+
+      <h4>DuckDuckGo, RSS, outlets, Reddit (supplement)</h4>
+      <p>
+        Regional DuckDuckGo news, Google News RSS, 20+ major outlets (Reuters, BBC, Bloomberg, ILO, etc.),
+        and labor-related subreddits. Supplements focus on the last ~90 days when the full range is multi-year.
+      </p>
+
+      <h3>Regional focus</h3>
+      <p>
+        Default discovery and display bias: <strong>Africa</strong>, <strong>Latin America</strong>,
+        and the <strong>Middle East</strong>. Geographic balancing reserves a minimum number of rows
+        per focus region before filling the rest of the table (cap ~400 incidents on the public site).
+      </p>
+
+      <h3>Parsed fields</h3>
+      <table class="parse-table methodology-table">
+        <thead>
+          <tr><th>Field</th><th>Derivation</th></tr>
+        </thead>
+        <tbody>
+          <tr><td>Region</td><td>Thematic label from country, source bucket, or keywords</td></tr>
+          <tr><td>Country</td><td>Event Registry metadata, publisher, or domain inference</td></tr>
+          <tr><td>US state</td><td>Inferred from text when country is United States</td></tr>
+          <tr><td>Industry</td><td>Concept tags + keyword rules (Technology, Entertainment, …)</td></tr>
+          <tr><td>AI incident type</td><td>Layoffs, automation, gig work, policy, creative rights, …</td></tr>
+          <tr><td>Headline / source</td><td>Original article metadata; headline links to source URL</td></tr>
+        </tbody>
+      </table>
+
+      <h3>Limitations</h3>
+      <ul>
+        <li>English-heavy queries; global coverage depends on indexed outlets.</li>
+        <li>Rule-based tags can misclassify; verify against the linked article.</li>
+        <li>Static production site updates on deploy, not continuously.</li>
+        <li>API quotas can limit any single build.</li>
+      </ul>
+
+      <p class="hint">
+        Full technical detail:
+        <a href="https://github.com/fourthletter/ai-labor-monitor/blob/main/docs/METHODOLOGY.md">docs/METHODOLOGY.md</a>
+        in the project repository.
+      </p>
+
+    </div>
+  </main>
+</div>
+{% endblock %}
