@@ -349,6 +349,21 @@ table.parse-table th, table.parse-table td {
 }
 table.parse-table th { background: var(--surface-alt); color: var(--brand); }
 table.parse-table tr:nth-child(even) { background: #fafbfd; }
+.article-explore-toolbar {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: flex-end;
+  gap: 0.75rem 1.25rem;
+  margin-bottom: 0.75rem;
+}
+.article-search-wrap { flex: 1 1 220px; margin: 0; }
+.article-search-wrap input { width: 100%; margin-top: 0.25rem; }
+.article-explore-meta { margin: 0; flex: 1 1 200px; font-size: 0.9rem; color: var(--muted); }
+.btn-sm { font-size: 0.82rem; padding: 0.35rem 0.65rem; }
+.parse-table-articles { min-width: 880px; }
+.parse-table-articles .headline-cell { max-width: 360px; }
+.parse-table-articles .headline-cell a { color: var(--brand); text-decoration: none; }
+.parse-table-articles .headline-cell a:hover { text-decoration: underline; }
 .digest-flag { color: var(--success); font-weight: 600; }
 
 /* ---- Narrative approaches portfolio ---- */

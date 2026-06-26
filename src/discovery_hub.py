@@ -197,6 +197,104 @@ def _merge_er_first(
     return merged
 
 
+def discover_viz_supplements(
+    *,
+    query: str,
+    date_from: date,
+    date_to: date,
+    theme_region_keys: list[str] | None = None,
+    global_coverage: bool = True,
+) -> list[ArticleCandidate]:
+    """DDGS + RSS/outlet feeds + Reddit for the labor-impact dashboard."""
+    if os.environ.get("VIZ_SUPPLEMENT", "1") != "1":
+        return []
+
+    raw_max = os.environ.get("VIZ_SUPPLEMENT_MAX", "100").strip()
+    max_total = int(raw_max) if raw_max.isdigit() else 100
+    max_total = min(max(max_total, 20), 200)
+
+    span = (date_to - date_from).days
+    supplement_start = date_from
+    if span > 90:
+        supplement_start = max(date_from, date_to - timedelta(days=90))
+
+    from src.thematic_regions import ddgs_regions_for_themes
+
+    raw_max = os.environ.get("VIZ_DDGS_MAX_REGIONS", "12").strip()
+    ddgs_cap = int(raw_max) if raw_max.isdigit() else 12
+    regions = (
+        ddgs_regions_for_themes(theme_region_keys, max_regions=ddgs_cap)
+        if theme_region_keys
+        else None
+    )
+    use_outlets = os.environ.get("ENABLE_OUTLET_FEEDS", "1") == "1"
+    use_reddit = os.environ.get("ENABLE_REDDIT", "1") == "1"
+    use_broad_rss = os.environ.get("ENABLE_BROAD_NEWS", "1") == "1"
+
+    per_source = max(20, max_total // 4)
+    supplement_fns: list = [
+        lambda: discover_ddgs(
+            query=query,
+            max_candidates=min(50, max_total),
+            date_from=supplement_start,
+            date_to=date_to,
+            global_coverage=global_coverage,
+            regions=regions,
+        ),
+    ]
+    if use_broad_rss:
+        supplement_fns.append(
+            lambda: discover_broad_google_news(
+                query,
+                date_from=supplement_start,
+                date_to=date_to,
+                max_total=per_source,
+            )
+        )
+    if use_outlets:
+        supplement_fns.append(
+            lambda: discover_outlet_feeds(
+                query,
+                date_from=supplement_start,
+                date_to=date_to,
+                max_total=per_source,
+            )
+        )
+    if use_reddit:
+        supplement_fns.append(
+            lambda: discover_reddit(
+                query=query,
+                date_from=supplement_start,
+                date_to=date_to,
+                max_results=min(25, per_source),
+            )
+        )
+
+    def _run(fn):
+        try:
+            return fn()
+        except Exception:
+            logger.exception("Viz supplement discovery source failed")
+            return []
+
+    batches: list[list[ArticleCandidate]] = []
+    with ThreadPoolExecutor(max_workers=len(supplement_fns)) as pool:
+        for batch in pool.map(_run, supplement_fns):
+            batches.append(batch)
+
+    merged = _merge_candidates(batches, max_total)
+    if merged:
+        providers = sorted({c.provider for c in merged})
+        logger.info(
+            "Viz supplements: %d candidates (%s – %s) from %s",
+            len(merged),
+            supplement_start.isoformat(),
+            date_to.isoformat(),
+            providers,
+        )
+    return merged
+
+
 def discover_all(
     query: str = DEFAULT_QUERY,
     max_candidates: int = 80,

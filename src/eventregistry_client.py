@@ -512,6 +512,56 @@ def discover_eventregistry_viz(
     return merged
 
 
+def discover_eventregistry_viz_themes(
+    date_from: date,
+    date_to: date,
+    theme_region_keys: list[str],
+    *,
+    per_theme: int | None = None,
+) -> list[ArticleCandidate]:
+    """Dedicated Event Registry pull per focus theme (Africa, LatAm, MENA, etc.)."""
+    api_key = os.environ.get("EVENTREGISTRY_API_KEY", "").strip()
+    if not api_key or not theme_region_keys:
+        return []
+
+    raw = os.environ.get("VIZ_ER_PER_THEME", "35").strip()
+    count = per_theme if per_theme is not None else (int(raw) if raw.isdigit() else 35)
+    count = min(max(count, 8), 50)
+
+    batches: list[list[ArticleCandidate]] = []
+    for tid in theme_region_keys:
+        if not tid or tid == "global":
+            continue
+        uris = _location_uris_for_themes([tid])
+        if not uris:
+            continue
+        batches.append(
+            _fetch_articles(
+                api_key,
+                date_from=date_from,
+                date_to=date_to,
+                mode="ai_labor",
+                count=count,
+                location_uris=uris,
+                search_region=f"eventregistry:viz:theme:{tid}",
+                sort_by="rel",
+            )
+        )
+
+    if not batches:
+        return []
+
+    merged = _merge_candidates(batches, max_total=count * len(batches))
+    logger.info(
+        "Event Registry viz themes: %d candidates across %d themes (%s – %s)",
+        len(merged),
+        len(batches),
+        date_from.isoformat(),
+        date_to.isoformat(),
+    )
+    return merged
+
+
 def fetch_viz_year_candidates(
     year: int,
     *,
@@ -520,7 +570,7 @@ def fetch_viz_year_candidates(
     per_year: int,
     theme_region_keys: list[str] | None = None,
 ) -> list[ArticleCandidate]:
-    """Single labor query for one calendar year (used by per-year disk cache)."""
+    """Labor query per calendar year + optional per-theme regional supplements."""
     api_key = os.environ.get("EVENTREGISTRY_API_KEY", "").strip()
     if not api_key:
         return []
@@ -531,15 +581,44 @@ def fetch_viz_year_candidates(
         return []
 
     count = min(max(per_year, 1), 100)
-    return _fetch_articles(
-        api_key,
-        date_from=y_from,
-        date_to=y_to,
-        mode="ai_labor",
-        count=count,
-        search_region=f"eventregistry:viz:{year}",
-        sort_by="date",
-    )
+    batches: list[list[ArticleCandidate]] = [
+        _fetch_articles(
+            api_key,
+            date_from=y_from,
+            date_to=y_to,
+            mode="ai_labor",
+            count=count,
+            search_region=f"eventregistry:viz:{year}",
+            sort_by="date",
+        )
+    ]
+
+    themes = [t for t in (theme_region_keys or []) if t and t != "global"]
+    regional_cap = 0
+    if themes and os.environ.get("VIZ_YEAR_REGIONAL", "1") == "1":
+        per_theme = min(
+            20,
+            max(8, int(os.environ.get("VIZ_YEAR_PER_THEME", "12"))),
+        )
+        regional_cap = per_theme * len(themes)
+        for tid in themes:
+            uris = _location_uris_for_themes([tid])
+            if not uris:
+                continue
+            batches.append(
+                _fetch_articles(
+                    api_key,
+                    date_from=y_from,
+                    date_to=y_to,
+                    mode="ai_labor",
+                    count=per_theme,
+                    location_uris=uris,
+                    search_region=f"eventregistry:viz:{year}:{tid}",
+                    sort_by="date",
+                )
+            )
+
+    return _merge_candidates(batches, max_total=count + regional_cap)
 
 
 def discover_viz_yearly_samples(

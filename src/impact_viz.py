@@ -9,9 +9,11 @@ from datetime import date, timedelta
 
 from src.config import DigestConfig
 from src.discover import DEFAULT_QUERY
-from src.discovery_hub import newsapi_available
+from src.discovery_hub import discover_viz_supplements, newsapi_available
 from src.eventregistry_client import (
+    discover_eventregistry,
     discover_eventregistry_viz,
+    discover_eventregistry_viz_themes,
     fetch_viz_year_candidates,
 )
 from src.labor_impact_parse import VIZ_MIN_DATE, build_impact_dataset, empty_impact_viz
@@ -21,7 +23,8 @@ from src.thematic_regions import (
     classify_thematic_region,
     format_filter_summary,
     normalize_region_selection,
-    split_discovery_plan,
+    viz_focus_region_ids,
+    viz_newsapi_bucket_keys,
 )
 from src.viz_cache import load_year_candidates, save_year_candidates
 
@@ -37,27 +40,55 @@ class ImpactVizResult:
 
 
 def _viz_live_max() -> int:
-    raw = os.environ.get("VIZ_DISCOVER_MAX_RESULTS", "120").strip()
+    raw = os.environ.get("VIZ_DISCOVER_MAX_RESULTS", "150").strip()
     if raw.isdigit():
-        return min(max(int(raw), 20), 120)
-    return 120
+        return min(max(int(raw), 20), 200)
+    return 150
 
 
 def _viz_per_year() -> int:
-    raw = os.environ.get("EVENTREGISTRY_VIZ_PER_YEAR", "24").strip()
+    raw = os.environ.get("EVENTREGISTRY_VIZ_PER_YEAR", "32").strip()
     if raw.isdigit():
         return min(max(int(raw), 6), 100)
-    return 24
+    return 32
 
 
-def _viz_theme_region_keys(geographic_regions: tuple[str, ...]) -> list[str] | None:
-    """Regions for chart discovery — Event Registry themes only (no NewsAPI)."""
+def _viz_newsapi_max(live_max: int) -> int:
+    raw = os.environ.get("VIZ_NEWSAPI_MAX", "80").strip()
+    if raw.isdigit():
+        return min(max(int(raw), 10), live_max)
+    return min(80, live_max)
+
+
+def _viz_er_broad_enabled() -> bool:
+    return os.environ.get("VIZ_ER_BROAD", "1") == "1"
+
+
+def _viz_theme_region_keys(geographic_regions: tuple[str, ...]) -> list[str]:
+    """Focus themes for viz discovery — user selection or Africa / LatAm / MENA default."""
     themes = [
         t
         for t in normalize_region_selection(list(geographic_regions))
         if t in EVENTREGISTRY_DISCOVERY_THEMES
     ]
-    return themes or None
+    if themes:
+        return themes
+    return list(viz_focus_region_ids())
+
+
+def _interleave_batches(batches: list[list]) -> list:
+    """Round-robin merge so regional batches are not drowned out by global pulls."""
+    from itertools import zip_longest
+
+    merged: list = []
+    seen: set[str] = set()
+    for group in zip_longest(*batches):
+        for c in group:
+            if c is None or c.url in seen:
+                continue
+            seen.add(c.url)
+            merged.append(c)
+    return merged
 
 
 def _merge_candidates_unique(
@@ -120,10 +151,23 @@ def collect_viz_candidates(config: DigestConfig) -> list:
     theme_keys = _viz_theme_region_keys(config.geographic_regions)
     force_refresh = os.environ.get("VIZ_CACHE_REFRESH", "0") == "1"
     live_max = _viz_live_max()
-    seen: set[str] = set()
     batches: list[list] = []
 
     span_days = (viz_to - viz_from).days
+    recent_from = max(viz_from, viz_to - timedelta(days=365))
+    query = config.query or DEFAULT_QUERY
+    er_from = recent_from if span_days >= 400 else viz_from
+
+    # Priority: per-theme regional Event Registry (Africa, LatAm, MENA)
+    if os.environ.get("EVENTREGISTRY_API_KEY", "").strip():
+        batches.append(
+            discover_eventregistry_viz_themes(
+                er_from,
+                viz_to,
+                theme_keys,
+            )
+        )
+
     if span_days >= 400:
         batches.append(
             _collect_years_cached(
@@ -133,7 +177,6 @@ def collect_viz_candidates(config: DigestConfig) -> list:
                 force_refresh=force_refresh,
             )
         )
-        recent_from = max(viz_from, viz_to - timedelta(days=365))
         batches.append(
             discover_eventregistry_viz(
                 recent_from,
@@ -152,23 +195,39 @@ def collect_viz_candidates(config: DigestConfig) -> list:
             )
         )
 
-    if newsapi_available():
-        plan = split_discovery_plan(list(config.geographic_regions))
-        if plan.use_newsapi:
-            newsapi_buckets = (
-                list(plan.newsapi_bucket_keys) if plan.newsapi_bucket_keys else None
+    if _viz_er_broad_enabled() and os.environ.get("EVENTREGISTRY_API_KEY", "").strip():
+        batches.append(
+            discover_eventregistry(
+                query,
+                date_from=er_from,
+                date_to=viz_to,
+                max_results=live_max,
+                theme_region_keys=theme_keys,
             )
-            batches.append(
-                discover_newsapi(
-                    config.query or DEFAULT_QUERY,
-                    date_from=viz_from,
-                    date_to=viz_to,
-                    max_results=min(live_max, 50),
-                    bucket_keys=newsapi_buckets,
-                )
-            )
+        )
 
-    candidates = _merge_candidates_unique(batches, seen)
+    if newsapi_available():
+        batches.append(
+            discover_newsapi(
+                query,
+                date_from=viz_from,
+                date_to=viz_to,
+                max_results=_viz_newsapi_max(live_max),
+                bucket_keys=viz_newsapi_bucket_keys(),
+            )
+        )
+
+    batches.append(
+        discover_viz_supplements(
+            query=query,
+            date_from=viz_from,
+            date_to=viz_to,
+            theme_region_keys=theme_keys,
+            global_coverage=False,
+        )
+    )
+
+    candidates = _interleave_batches(batches)
     for c in candidates:
         c.thematic_region = classify_thematic_region(c)
 
@@ -191,7 +250,7 @@ def build_labor_impact_viz(
     viz_from = max(config.date_from, VIZ_MIN_DATE)
     viz_to = config.date_to
 
-    max_records = int(os.environ.get("IMPACT_VIZ_MAX_RECORDS", "200"))
+    max_records = int(os.environ.get("IMPACT_VIZ_MAX_RECORDS", "400"))
     try:
         records, viz = build_impact_dataset(
             candidates,

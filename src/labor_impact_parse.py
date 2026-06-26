@@ -3,7 +3,7 @@
 from __future__ import annotations
 
 import os
-from collections import Counter
+from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
 
@@ -412,6 +412,55 @@ def _build_map_country_bubbles(records: list[LaborImpactRecord]) -> list[dict]:
     return bubbles
 
 
+def _select_balanced_records(
+    records: list[LaborImpactRecord],
+    max_records: int,
+) -> list[LaborImpactRecord]:
+    """Prefer Africa, Latin America, and MENA when capping dashboard rows."""
+    if os.environ.get("VIZ_GEO_BALANCE", "1") != "1" or len(records) <= max_records:
+        return records[:max_records]
+
+    from src.thematic_regions import viz_focus_region_labels
+
+    focus_labels = set(viz_focus_region_labels())
+    min_per = max(1, int(os.environ.get("VIZ_MIN_PER_FOCUS_REGION", "25")))
+
+    by_region: dict[str, list[LaborImpactRecord]] = defaultdict(list)
+    for r in records:
+        by_region[r.region].append(r)
+
+    selected: list[LaborImpactRecord] = []
+    seen: set[str] = set()
+
+    for label in focus_labels:
+        for r in by_region.get(label, [])[:min_per]:
+            if r.url in seen:
+                continue
+            seen.add(r.url)
+            selected.append(r)
+
+    rotation = list(focus_labels) + [
+        label for label in sorted(by_region) if label not in focus_labels
+    ]
+    idx = 0
+    while len(selected) < max_records and rotation:
+        label = rotation[idx % len(rotation)]
+        idx += 1
+        pool = by_region.get(label, [])
+        picked = False
+        for r in pool:
+            if r.url in seen:
+                continue
+            seen.add(r.url)
+            selected.append(r)
+            picked = True
+            break
+        if not picked and idx > len(records) * 2:
+            break
+
+    return selected[:max_records]
+
+
 def build_impact_dataset(
     candidates: list[ArticleCandidate],
     *,
@@ -426,7 +475,7 @@ def build_impact_dataset(
     multi_year = date_to.year - date_from.year >= 1
 
     digest_urls = digest_urls or set()
-    records: list[LaborImpactRecord] = []
+    parsed: list[LaborImpactRecord] = []
     seen: set[str] = set()
     for c in candidates:
         if c.url in seen:
@@ -440,9 +489,9 @@ def build_impact_dataset(
         if row is None:
             continue
         seen.add(c.url)
-        records.append(row)
-        if len(records) >= max_records:
-            break
+        parsed.append(row)
+
+    records = _select_balanced_records(parsed, max_records)
 
     def _top(counter: Counter[str], n: int = 12) -> list[dict]:
         return [{"label": k, "count": v} for k, v in counter.most_common(n)]

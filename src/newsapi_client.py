@@ -100,6 +100,18 @@ BUCKET_DEFINITIONS: dict[str, NewsApiBucket] = {
             "nytimes.com,wsj.com,cnn.com,cnbc.com,foxnews.com"
         ),
     ),
+    "middle_east": NewsApiBucket(
+        key="middle_east",
+        search_region="newsapi:middle_east",
+        domains=(
+            "aljazeera.com,arabnews.com,middleeasteye.net,thenationalnews.com,"
+            "haaretz.com,hurriyetdailynews.com,english.alarabiya.net,"
+            "english.aawsat.com,trtworld.com"
+        ),
+        exclude_domains=(
+            "nytimes.com,wsj.com,cnn.com,cnbc.com,foxnews.com"
+        ),
+    ),
     "open": NewsApiBucket(
         key="open",
         search_region="newsapi:open",

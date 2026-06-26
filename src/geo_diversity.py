@@ -12,6 +12,7 @@ from src.thematic_regions import (
     DEFAULT_FOCUS_REGIONS,
     EUROPE_COUNTRIES,
     LATIN_AMERICA_COUNTRIES,
+    MIDDLE_EAST_COUNTRIES,
     NORTH_AMERICA_COUNTRIES,
     default_geographic_regions,
     resolve_pick_order,
@@ -40,6 +41,8 @@ def geographic_bucket(article: RankedArticle) -> str:
         return "africa"
     if search.startswith("newsapi:latin_america"):
         return "latin_america"
+    if search.startswith("newsapi:middle_east"):
+        return "middle_east"
     if search.startswith("newsapi:eu"):
         return "europe"
     if search.startswith("newsapi:global_majority"):
@@ -72,6 +75,8 @@ def _bucket_from_country_value(country: str) -> str:
         return "africa"
     if country in LATIN_AMERICA_COUNTRIES:
         return "latin_america"
+    if country in MIDDLE_EAST_COUNTRIES:
+        return "middle_east"
     return "global_majority"
 
 

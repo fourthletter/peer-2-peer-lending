@@ -218,7 +218,7 @@ THEMATIC_REGIONS: dict[str, ThematicRegion] = {
         id="middle_east",
         label="Middle East",
         ddgs_codes=("ae-ar", "sa-ar", "il-en", "tr-tr", "eg-ar"),
-        newsapi_buckets=("global_majority", "open"),
+        newsapi_buckets=("middle_east", "global_majority"),
         countries=MIDDLE_EAST_COUNTRIES,
         content_keywords=(
             "middle east",
@@ -267,6 +267,37 @@ def build_search_query(base: str, extra_keywords: str) -> str:
 
 DEFAULT_FOCUS_REGIONS = ("asia", "africa", "latin_america", "middle_east")
 
+VIZ_FOCUS_REGION_IDS = ("africa", "latin_america", "middle_east")
+
+
+def viz_focus_region_ids() -> tuple[str, ...]:
+    """Dashboard discovery bias — Africa, Latin America, MENA by default."""
+    raw = os.environ.get("VIZ_FOCUS_REGIONS", ",".join(VIZ_FOCUS_REGION_IDS)).strip()
+    ids = normalize_region_selection([s.strip() for s in raw.split(",") if s.strip()])
+    if not ids:
+        return VIZ_FOCUS_REGION_IDS
+    return tuple(t for t in ids if t in EVENTREGISTRY_DISCOVERY_THEMES)
+
+
+def viz_focus_region_labels() -> tuple[str, ...]:
+    return tuple(THEMATIC_REGIONS[tid].label for tid in viz_focus_region_ids())
+
+
+def viz_newsapi_bucket_keys() -> list[str]:
+    """NewsAPI buckets for dashboard pulls (focus regions + global majority)."""
+    keys: list[str] = []
+    seen: set[str] = set()
+    for tid in viz_focus_region_ids():
+        for key in THEMATIC_REGIONS[tid].newsapi_buckets:
+            if key not in seen:
+                seen.add(key)
+                keys.append(key)
+    for extra in ("global_majority", "asia"):
+        if extra not in seen:
+            seen.add(extra)
+            keys.append(extra)
+    return keys
+
 
 def default_geographic_regions() -> tuple[str, ...]:
     """Default thematic focus from DEFAULT_GEOGRAPHIC_REGIONS env.
@@ -299,7 +330,11 @@ def resolve_pick_order(theme_ids: list[str] | tuple[str, ...]) -> tuple[str, ...
     return tuple(order)
 
 
-def ddgs_regions_for_themes(theme_ids: list[str]) -> list[str] | None:
+def ddgs_regions_for_themes(
+    theme_ids: list[str],
+    *,
+    max_regions: int | None = None,
+) -> list[str] | None:
     """DDGS region codes for selected themes; None = default global coverage.
 
     Codes are round-robined across the selected themes so a capped list still
@@ -323,9 +358,11 @@ def ddgs_regions_for_themes(theme_ids: list[str]) -> list[str] | None:
                     codes.append(code)
         i += 1
 
-    max_regions = int(os.environ.get("DDGS_MAX_REGIONS", "8"))
-    if max_regions > 0:
-        codes = codes[:max_regions]
+    cap = max_regions
+    if cap is None:
+        cap = int(os.environ.get("DDGS_MAX_REGIONS", "8"))
+    if cap > 0:
+        codes = codes[:cap]
     return codes or None
 
 
