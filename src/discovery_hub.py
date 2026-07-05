@@ -9,6 +9,7 @@ from datetime import date, timedelta
 from itertools import zip_longest
 
 from src.article import ArticleCandidate
+from src.storage import normalize_url
 from src.discover import DEFAULT_QUERY, discover_ddgs
 from src.eventregistry_client import discover_eventregistry
 from src.feeds import discover_broad_google_news, discover_outlet_feeds
@@ -16,6 +17,10 @@ from src.newsapi_client import discover_newsapi
 from src.reddit_source import discover_reddit
 
 logger = logging.getLogger(__name__)
+
+
+def _url_key(url: str) -> str:
+    return normalize_url(url) or url.strip()
 
 def _discovery_cap(requested: int, *, newsapi_only: bool = False) -> int:
     """Max candidates to collect across all sources."""
@@ -85,9 +90,12 @@ def _merge_candidates(
     seen: set[str] = set()
     for group in zip_longest(*batches):
         for c in group:
-            if c is None or c.url in seen:
+            if c is None:
                 continue
-            seen.add(c.url)
+            key = normalize_url(c.url)
+            if not key or key in seen:
+                continue
+            seen.add(key)
             merged.append(c)
             if len(merged) >= max_total:
                 return merged
@@ -112,7 +120,7 @@ def _append_supplement_sources(
     """Add non-API discovery batches up to cap, preserving existing URLs."""
     if not _supplement_enabled() or len(results) >= cap:
         return results
-    seen = {c.url for c in results}
+    seen = {_url_key(c.url) for c in results if _url_key(c.url)}
     batches: list[list[ArticleCandidate]] = []
     use_outlets = os.environ.get("ENABLE_OUTLET_FEEDS", "1") == "1"
     use_reddit = os.environ.get("ENABLE_REDDIT", "1") == "1"
@@ -162,9 +170,10 @@ def _append_supplement_sources(
         if not batch:
             continue
         for c in batch:
-            if c.url in seen:
+            key = _url_key(c.url)
+            if not key or key in seen:
                 continue
-            seen.add(c.url)
+            seen.add(key)
             results.append(c)
             if len(results) >= cap:
                 return results
@@ -180,17 +189,19 @@ def _merge_er_first(
     merged: list[ArticleCandidate] = []
     seen: set[str] = set()
     for c in primary:
-        if c.url in seen:
+        key = _url_key(c.url)
+        if not key or key in seen:
             continue
-        seen.add(c.url)
+        seen.add(key)
         merged.append(c)
         if len(merged) >= max_total:
             return merged
     for batch in others:
         for c in batch:
-            if c.url in seen:
+            key = _url_key(c.url)
+            if not key or key in seen:
                 continue
-            seen.add(c.url)
+            seen.add(key)
             merged.append(c)
             if len(merged) >= max_total:
                 return merged

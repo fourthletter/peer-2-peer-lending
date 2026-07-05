@@ -482,22 +482,6 @@ def classify_thematic_region(candidate: ArticleCandidate) -> str:
     return ""
 
 
-def filter_by_themes(
-    candidates: list[ArticleCandidate],
-    theme_ids: list[str],
-) -> list[ArticleCandidate]:
-    """Keep articles matching any selected thematic region."""
-    theme_ids = normalize_region_selection(theme_ids)
-    if not theme_ids:
-        return candidates
-
-    filtered: list[ArticleCandidate] = []
-    for c in candidates:
-        if any(article_matches_theme(c, tid) for tid in theme_ids):
-            filtered.append(c)
-    return filtered
-
-
 def format_filter_summary(
     *,
     theme_ids: list[str],

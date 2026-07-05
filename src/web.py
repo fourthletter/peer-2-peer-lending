@@ -37,13 +37,16 @@ logging.basicConfig(
     level=logging.INFO,
     format="%(asctime)s %(levelname)s %(name)s: %(message)s",
 )
+logger = logging.getLogger(__name__)
+
+DEFAULT_SECRET_KEY = "news-agent-dev-key-change-me"
 
 app = Flask(
     __name__,
     template_folder=str(ROOT / "templates"),
     static_folder=str(ROOT / "static"),
 )
-app.secret_key = os.environ.get("FLASK_SECRET_KEY", "news-agent-dev-key-change-me")
+app.secret_key = os.environ.get("FLASK_SECRET_KEY", DEFAULT_SECRET_KEY)
 app.jinja_env.globals["discovery_region_label"] = discovery_region_label
 
 DEFAULT_MTC_URL = "https://morethancode.org"
@@ -68,7 +71,7 @@ def _parse_form_date(name: str, default: date) -> date:
     return datetime.strptime(raw, "%Y-%m-%d").date()
 
 
-RANGE_PRESETS = ("week", "month", "year", "ytd2026", "since2020")
+RANGE_PRESETS = ("week", "month", "year", "ytd", "since2020")
 
 
 def _subtract_months(d: date, months: int) -> date:
@@ -97,8 +100,8 @@ def _range_from_preset(preset: str, today: date) -> tuple[date, date] | None:
         except ValueError:
             start = today - timedelta(days=365)
         return start, today
-    if preset == "ytd2026":
-        return date(2026, 1, 1), today
+    if preset == "ytd":
+        return date(today.year, 1, 1), today
     if preset == "since2020":
         return date(2020, 1, 1), today
     return None
@@ -323,21 +326,8 @@ def _template_context(
         "extra_keywords": extra_keywords,
         "date_from": date_from,
         "date_to": date_to,
+        "current_year": date.today().year,
     }
-
-
-def _default_viz_config() -> DigestConfig:
-    from src.thematic_regions import default_geographic_regions
-
-    return DigestConfig(
-        date_from=date(2020, 1, 1),
-        date_to=date.today(),
-        article_count=DEFAULT_ARTICLE_COUNT,
-        skip_dedup=True,
-        global_coverage=not _api_discovery_from_env(),
-        newsapi_only=_newsapi_only_from_env(),
-        geographic_regions=default_geographic_regions(),
-    )
 
 
 def _startup_viz_config() -> DigestConfig:
@@ -378,7 +368,7 @@ def _viz_page_context(
     startup_cfg = _startup_viz_config()
     if viz_result is None:
         viz_result = _viz_from_cache()
-        if not viz_result and os.environ.get("VIZ_LOAD_ON_STARTUP", "1") == "1":
+        if not viz_result and os.environ.get("VIZ_LOAD_ON_STARTUP", "0") == "1":
             try:
                 viz_result = build_labor_impact_viz(startup_cfg)
                 _store_viz_cache(
@@ -452,6 +442,10 @@ def preview():
     except (ValueError, RuntimeError) as exc:
         flash(str(exc), "error")
         return redirect(url_for("news"))
+    except Exception:
+        logger.exception("Digest preview failed")
+        flash("Preview failed. Check logs and try again.", "error")
+        return redirect(url_for("news"))
 
     _store_digest_session(result)
     ctx = _template_context(
@@ -490,36 +484,39 @@ def load_viz():
 
 @app.route("/export", methods=["POST"])
 def export_csv():
-    """Download digest rows as CSV (Event Registry export-style columns)."""
-    try:
-        config = _config_from_form()
-        result = build_digest(config, dry_run=True)
-    except (ValueError, RuntimeError) as exc:
-        flash(str(exc), "error")
+    """Download digest rows from the last preview (no re-run)."""
+    result = _digest_from_session()
+    if not result or not result.articles:
+        flash("No preview to export. Run Preview first.", "error")
         return redirect(url_for("news"))
 
-    buf = io.StringIO()
-    writer = csv.writer(buf)
-    writer.writerow(["id", "title", "date", "summary", "concepts", "companies", "country"])
-    for article in result.articles:
-        day = article.published.strftime("%Y-%m-%d") if article.published else ""
-        writer.writerow(
-            [
-                day,
-                article.headline,
-                day,
-                article.summary,
-                ", ".join(article.concepts),
-                ", ".join(article.companies),
-                article.publisher_country,
-            ]
+    try:
+        buf = io.StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(["title", "date", "summary", "concepts", "companies", "country", "url"])
+        for article in result.articles:
+            day = article.published.strftime("%Y-%m-%d") if article.published else ""
+            writer.writerow(
+                [
+                    article.headline,
+                    day,
+                    article.summary,
+                    ", ".join(article.concepts),
+                    ", ".join(article.companies),
+                    article.publisher_country,
+                    article.url,
+                ]
+            )
+        filename = f"aim-digest-{date.today().isoformat()}.csv"
+        return Response(
+            buf.getvalue(),
+            mimetype="text/csv; charset=utf-8",
+            headers={"Content-Disposition": f'attachment; filename="{filename}"'},
         )
-    filename = f"aim-digest-{date.today().isoformat()}.csv"
-    return Response(
-        buf.getvalue(),
-        mimetype="text/csv; charset=utf-8",
-        headers={"Content-Disposition": f'attachment; filename="{filename}"'},
-    )
+    except Exception:
+        logger.exception("CSV export failed")
+        flash("Export failed. Try previewing again.", "error")
+        return redirect(url_for("news"))
 
 
 DEFAULT_PORT = 5050
@@ -528,6 +525,8 @@ DEFAULT_PORT = 5050
 def main() -> None:
     port = int(os.environ.get("PORT", str(DEFAULT_PORT)))
     debug = os.environ.get("FLASK_DEBUG", "").lower() in ("1", "true", "yes")
+    if app.secret_key == DEFAULT_SECRET_KEY:
+        logger.warning("Using default FLASK_SECRET_KEY — set a unique value in production")
     site_url_val = site_url()
     print(f"MoreThanCode AI & Labor Monitor: {site_url_val}")
     print(f"  Labor Impact Dashboard: {site_url_val}/incidents")

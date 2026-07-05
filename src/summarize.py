@@ -27,7 +27,7 @@ def _llm_retry_enabled() -> bool:
 
 def llm_summary_enabled() -> bool:
     """False when SUMMARY_LLM=0 — use headline + discovery snippet only (no Ollama)."""
-    return os.environ.get("SUMMARY_LLM", "1") != "0"
+    return os.environ.get("SUMMARY_LLM", "0") != "0"
 
 SUMMARY_JSON_INSTRUCTION = """\
 Respond with JSON only, in this exact shape:

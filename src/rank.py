@@ -172,7 +172,7 @@ def rank_by_eventregistry_score(
 
 
 def _preview_chars() -> int:
-    return int(os.environ.get("RANK_PREVIEW_CHARS", "700"))
+    return int(os.environ.get("RANK_PREVIEW_CHARS", "500"))
 
 
 def _preview_text(candidate: dict) -> str:
@@ -260,7 +260,7 @@ def rank_articles(
     threshold = relevance_threshold if relevance_threshold is not None else _threshold()
     to_rank = candidates[:max_to_rank]
 
-    if os.environ.get("RANK_LLM", "1").strip() == "0":
+    if os.environ.get("RANK_LLM", "0").strip() == "0":
         return _keyword_fallback(
             to_rank,
             top_n=top_n,

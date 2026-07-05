@@ -29,7 +29,7 @@ def geo_diversity_enabled() -> bool:
 
 
 def max_per_geo_bucket() -> int:
-    return max(1, int(os.environ.get("RANK_MAX_PER_GEO", "1")))
+    return max(1, int(os.environ.get("RANK_MAX_PER_GEO", "2")))
 
 
 def geographic_bucket(article: RankedArticle) -> str:

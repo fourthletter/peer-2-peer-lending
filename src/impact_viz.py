@@ -18,6 +18,7 @@ from src.eventregistry_client import (
 )
 from src.labor_impact_parse import VIZ_MIN_DATE, build_impact_dataset, empty_impact_viz
 from src.newsapi_client import discover_newsapi
+from src.storage import normalize_url
 from src.thematic_regions import (
     EVENTREGISTRY_DISCOVERY_THEMES,
     classify_thematic_region,
@@ -84,9 +85,12 @@ def _interleave_batches(batches: list[list]) -> list:
     seen: set[str] = set()
     for group in zip_longest(*batches):
         for c in group:
-            if c is None or c.url in seen:
+            if c is None:
                 continue
-            seen.add(c.url)
+            key = normalize_url(c.url)
+            if not key or key in seen:
+                continue
+            seen.add(key)
             merged.append(c)
     return merged
 
@@ -98,9 +102,10 @@ def _merge_candidates_unique(
     merged = []
     for batch in batches:
         for c in batch:
-            if c.url in seen:
+            key = normalize_url(c.url)
+            if not key or key in seen:
                 continue
-            seen.add(c.url)
+            seen.add(key)
             merged.append(c)
     return merged
 

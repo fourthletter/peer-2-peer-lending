@@ -120,7 +120,7 @@ def load_payload_cache() -> dict | None:
 def save_payload_cache(payload: dict) -> None:
     cache_dir = viz_cache_dir()
     cache_dir.mkdir(parents=True, exist_ok=True)
-    payload_file().write_text(
-        json.dumps(payload, ensure_ascii=False),
-        encoding="utf-8",
-    )
+    path = payload_file()
+    tmp = path.with_suffix(".tmp")
+    tmp.write_text(json.dumps(payload, ensure_ascii=False), encoding="utf-8")
+    tmp.replace(path)

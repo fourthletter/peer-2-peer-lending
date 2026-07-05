@@ -24,6 +24,17 @@ DEFAULT_QUERY = (
 MAX_CANDIDATES = 220
 
 
+DDGS_MAX_SPAN_DAYS = 31
+
+
+def ddgs_effective_range(date_from: date, date_to: date) -> tuple[date, date]:
+    """DDGS news timelimit caps at ~1 month — scope to the recent window for long ranges."""
+    span = (date_to - date_from).days
+    if span <= DDGS_MAX_SPAN_DAYS:
+        return date_from, date_to
+    return date_to - timedelta(days=DDGS_MAX_SPAN_DAYS), date_to
+
+
 def timelimit_for_range(date_from: date, date_to: date) -> str:
     span = (date_to - date_from).days
     if span <= 1:
@@ -126,10 +137,11 @@ def discover_ddgs(
     today = date.today()
     start = date_from or (today - timedelta(days=7))
     end = date_to or today
+    start, end = ddgs_effective_range(start, end)
     timelimit = timelimit_for_range(start, end)
     workers = int(os.environ.get("DISCOVER_WORKERS", "8"))
 
-    per_region_cap = int(os.environ.get("DDGS_PER_REGION", "12"))
+    per_region_cap = int(os.environ.get("DDGS_PER_REGION", "16"))
     per_region = max(
         6, min(per_region_cap, (max_candidates * 2) // max(len(region_list), 1))
     )
@@ -172,10 +184,3 @@ def discover_ddgs(
 
     logger.info("DDGS: %d candidates from %d regions", len(candidates), len(region_list))
     return candidates
-
-
-# Backward-compatible alias
-def discover_articles(**kwargs) -> list[ArticleCandidate]:
-    from src.discovery_hub import discover_all
-
-    return discover_all(**kwargs)

@@ -29,7 +29,7 @@
                   <button type="button" class="seg-btn" data-preset="week">Last week</button>
                   <button type="button" class="seg-btn" data-preset="month">Last month</button>
                   <button type="button" class="seg-btn" data-preset="since2020">Jan 2020 – now</button>
-                  <button type="button" class="seg-btn" data-preset="ytd2026">2026 YTD</button>
+                  <button type="button" class="seg-btn" data-preset="ytd">{{ current_year }} YTD</button>
                 </div>
                 <div class="row" style="margin-top:0.5rem;">
                   <div>
@@ -44,7 +44,7 @@
               </div>
               <div class="field-block span-2">
                 <label>Geographic regions</label>
-                <p class="field-hint">Filters maps, charts, and articles.{% if not static_site() %} Click <strong>Refresh data</strong> to re-pull news for the selected regions.{% endif %}</p>
+                <p class="field-hint">Date range, regions, and keywords instantly filter the loaded data below.{% if not static_site() %} Click <strong>Refresh data</strong> to re-pull news from sources for the current selection.{% endif %}</p>
                 <div class="region-grid" id="geographic-regions">
                   {% for region_id, region_label in thematic_options %}
                   <label class="region-option">
@@ -106,8 +106,8 @@
           {% if viz_result and viz_result.viz.get('total', 0) > 0 %}
           {% set viz = viz_result.viz %}
           <p class="viz-intro">
-            <strong>{{ viz.total }}</strong> incidents · {{ viz.year_label }}
-            · {{ viz_result.discovered }} discovered
+            <strong id="viz-intro-count">{{ viz.total }}</strong> of {{ viz.total }} incidents shown
+            · {{ viz.year_label }} · {{ viz_result.discovered }} discovered
           </p>
           <div class="viz-kpis">
             <div class="viz-kpi"><strong id="kpi-shown">{{ viz.total }}</strong><span>Shown after filters</span></div>
@@ -126,11 +126,15 @@
           </div>
           <script type="application/json" id="impact-records-data">{{ viz_result.records | tojson }}</script>
           {% elif viz_result %}
-          <p class="viz-intro">No incidents in range. Try <strong>Jan 2020 – now</strong> and click <strong>Refresh data</strong>.</p>
+          <p class="viz-intro">No incidents match your current filters. Widen the date range or clear region filters.</p>
           {% else %}
           <div class="viz-empty">
+            {% if static_site() %}
+            <p>No incident data is embedded for this build. Data is loaded when the site is deployed.</p>
+            {% else %}
             <p>No incident data loaded yet. Choose a date range and regions above, then click <strong>Refresh data</strong>.</p>
             <p class="hint">For Jan 2020 – present, the first refresh can take 1–2 minutes.</p>
+            {% endif %}
           </div>
           {% endif %}
         </div>
@@ -142,7 +146,7 @@
         <div class="panel-body">
           <div class="article-explore-toolbar">
             <label class="article-search-wrap">
-              <span class="glabel">Search headlines</span>
+              <span class="glabel">Search articles</span>
               <input type="search" id="article-search" placeholder="Filter by keyword…" autocomplete="off">
             </label>
             <p class="article-explore-meta" id="article-explore-meta"></p>
@@ -152,13 +156,13 @@
             <table class="parse-table parse-table-articles" id="articles-table">
               <thead>
                 <tr>
-                  <th class="sortable" scope="col" data-sort-key="date" aria-sort="descending">Date</th>
-                  <th class="sortable" scope="col" data-sort-key="region">Region</th>
-                  <th class="sortable" scope="col" data-sort-key="country">Country</th>
-                  <th class="sortable" scope="col" data-sort-key="industry_type">Industry</th>
-                  <th class="sortable" scope="col" data-sort-key="ai_incident_type">AI incident</th>
-                  <th class="sortable" scope="col" data-sort-key="headline">Headline</th>
-                  <th class="sortable" scope="col" data-sort-key="source">Source</th>
+                  <th class="sortable" scope="col" data-sort-key="date" aria-sort="descending" tabindex="0">Date</th>
+                  <th class="sortable" scope="col" data-sort-key="region" tabindex="0">Region</th>
+                  <th class="sortable" scope="col" data-sort-key="country" tabindex="0">Country</th>
+                  <th class="sortable" scope="col" data-sort-key="industry_type" tabindex="0">Industry</th>
+                  <th class="sortable" scope="col" data-sort-key="ai_incident_type" tabindex="0">AI incident</th>
+                  <th class="sortable" scope="col" data-sort-key="headline" tabindex="0">Headline</th>
+                  <th class="sortable" scope="col" data-sort-key="source" tabindex="0">Source</th>
                 </tr>
               </thead>
               <tbody id="articles-table-body"></tbody>
@@ -191,22 +195,44 @@
         }
       } catch (e) { /* ignore */ }
       let allRecords = [];
-      let chartInstances = [];
+      let totalRecordCount = 0;
+      let chartRegion = null;
+      let chartIndustry = null;
+      let chartAi = null;
       let incidentMap = null;
       let incidentLayer = null;
       let colorIndex = {};
       let articleSort = { key: "date", dir: "desc" };
+      let activePreset = "";
 
-      function fmt(d) { return d.toISOString().slice(0, 10); }
+      function fmtLocal(d) {
+        const y = d.getFullYear();
+        const m = String(d.getMonth() + 1).padStart(2, "0");
+        const day = String(d.getDate()).padStart(2, "0");
+        return y + "-" + m + "-" + day;
+      }
+
+      function getDateRangeFilter() {
+        const fromEl = document.getElementById("viz_date_from");
+        const toEl = document.getElementById("viz_date_to");
+        return {
+          from: fromEl ? fromEl.value : "",
+          to: toEl ? toEl.value : "",
+        };
+      }
+
+      function getFocusKeywords() {
+        const el = document.getElementById("viz_extra_keywords");
+        return el ? el.value.trim().toLowerCase() : "";
+      }
 
       function rangeForPreset(preset) {
         const end = new Date();
         const start = new Date();
         if (preset === "week") start.setDate(start.getDate() - 7);
         else if (preset === "month") start.setMonth(start.getMonth() - 1);
-        else if (preset === "year") start.setFullYear(start.getFullYear() - 1);
-        else if (preset === "ytd2026") {
-          start.setFullYear(2026, 0, 1);
+        else if (preset === "ytd") {
+          start.setMonth(0, 1);
           start.setHours(0, 0, 0, 0);
         } else if (preset === "since2020") {
           start.setFullYear(2020, 0, 1);
@@ -215,18 +241,26 @@
         return { start: start, end: end };
       }
 
+      function setActivePreset(preset) {
+        activePreset = preset || "";
+        document.querySelectorAll(".seg-btn[data-preset]").forEach(function (btn) {
+          btn.classList.toggle("active", btn.getAttribute("data-preset") === activePreset);
+        });
+      }
+
       document.querySelectorAll(".seg-btn[data-preset]").forEach(function (btn) {
         btn.addEventListener("click", function () {
-          const range = rangeForPreset(btn.getAttribute("data-preset"));
+          const preset = btn.getAttribute("data-preset");
+          const range = rangeForPreset(preset);
           if (!range) return;
-          [["viz_date_from", "viz_date_to"]].forEach(function (pair) {
-            const fromInput = document.getElementById(pair[0]);
-            const toInput = document.getElementById(pair[1]);
-            if (fromInput && toInput) {
-              fromInput.value = fmt(range.start);
-              toInput.value = fmt(range.end);
-            }
-          });
+          const fromInput = document.getElementById("viz_date_from");
+          const toInput = document.getElementById("viz_date_to");
+          if (fromInput && toInput) {
+            fromInput.value = fmtLocal(range.start);
+            toInput.value = fmtLocal(range.end);
+          }
+          setActivePreset(preset);
+          renderDashboard();
         });
       });
 
@@ -249,6 +283,12 @@
         return colorIndex[label];
       }
 
+      function destroyMapLayer() {
+        if (incidentLayer) {
+          incidentLayer.clearLayers();
+        }
+      }
+
       function destroyMap() {
         if (incidentMap) {
           incidentMap.remove();
@@ -259,8 +299,10 @@
 
       function destroyCharts() {
         destroyMap();
-        chartInstances.forEach(function (c) { c.destroy(); });
-        chartInstances = [];
+        [chartRegion, chartIndustry, chartAi].forEach(function (c) {
+          if (c) c.destroy();
+        });
+        chartRegion = chartIndustry = chartAi = null;
       }
 
       function countBy(records, field) {
@@ -285,9 +327,11 @@
 
       function selectedGeographicLabels() {
         const ids = selectedGeographicRegionIds();
-        if (!ids.length || ids.indexOf("global") >= 0) return null;
+        if (!ids.length) return null;
+        const specific = ids.filter(function (id) { return id !== "global"; });
+        if (!specific.length) return null;
         const labels = new Set();
-        ids.forEach(function (id) {
+        specific.forEach(function (id) {
           if (regionThemeLabels[id]) labels.add(regionThemeLabels[id]);
         });
         return labels.size ? labels : null;
@@ -316,17 +360,46 @@
           return out;
         }
         const stateSel = document.getElementById("filter-us-state");
+        const dates = getDateRangeFilter();
         return {
           geoLabels: selectedGeographicLabels(),
           industries: selected("filter-industries"),
           ai: selected("filter-ai"),
           usState: stateSel ? stateSel.value : "",
+          dateFrom: dates.from,
+          dateTo: dates.to,
+          keywords: getFocusKeywords(),
         };
+      }
+
+      function recordMatchesDateRange(record, dateFrom, dateTo) {
+        const d = record.date || "";
+        if (!d) return false;
+        if (dateFrom && d < dateFrom) return false;
+        if (dateTo && d > dateTo) return false;
+        return true;
+      }
+
+      function recordMatchesKeywords(record, keywords) {
+        if (!keywords) return true;
+        const blob = [
+          record.headline || "",
+          record.region || "",
+          record.country || "",
+          record.industry_type || "",
+          record.ai_incident_type || "",
+          record.source || "",
+        ].join(" ").toLowerCase();
+        const phrases = keywords.split(/[,;]+/).map(function (p) { return p.trim(); }).filter(Boolean);
+        if (!phrases.length) return blob.indexOf(keywords) >= 0;
+        return phrases.some(function (p) { return blob.indexOf(p.toLowerCase()) >= 0; });
       }
 
       function filterRecords(records) {
         const f = getActiveFilters();
         return records.filter(function (r) {
+          if (!recordMatchesDateRange(r, f.dateFrom, f.dateTo)) return false;
+          if (!recordMatchesKeywords(r, f.keywords)) return false;
           if (f.usState) {
             if ((r.country || "") !== "United States") return false;
             if ((r.us_state || "") !== f.usState) return false;
@@ -336,6 +409,11 @@
           if (f.ai.size && !f.ai.has(r.ai_incident_type)) return false;
           return true;
         });
+      }
+
+      function updateIntroCount(shown) {
+        const intro = document.getElementById("viz-intro-count");
+        if (intro) intro.textContent = String(shown);
       }
 
       function buildFilterChips(containerId, values, prefix) {
@@ -360,8 +438,8 @@
 
       function barChart(canvasId, rows, horizontal) {
         const el = document.getElementById(canvasId);
-        if (!el || !rows.length) return;
-        const chart = new Chart(el, {
+        if (!el || !rows.length || typeof Chart === "undefined") return null;
+        return new Chart(el, {
           type: "bar",
           data: {
             labels: rows.map(function (r) { return r.label; }),
@@ -376,6 +454,7 @@
             indexAxis: horizontal ? "y" : "x",
             responsive: true,
             maintainAspectRatio: true,
+            animation: { duration: 200 },
             plugins: { legend: { display: false } },
             scales: {
               x: { beginAtZero: true, ticks: { precision: 0 } },
@@ -383,7 +462,14 @@
             },
           },
         });
-        chartInstances.push(chart);
+      }
+
+      function updateBarChart(chart, rows) {
+        if (!chart || !rows.length) return;
+        chart.data.labels = rows.map(function (r) { return r.label; });
+        chart.data.datasets[0].data = rows.map(function (r) { return r.count; });
+        chart.data.datasets[0].backgroundColor = rows.map(function (r) { return colorFor(r.label); });
+        chart.update();
       }
 
       function escapeHtml(s) {
@@ -429,6 +515,34 @@
         });
       }
 
+      function aggregateByLocation(records) {
+        const stateSel = document.getElementById("filter-us-state");
+        const selectedState = stateSel ? stateSel.value : "";
+        if (!selectedState || !stateCentroids[selectedState]) {
+          return aggregateByCountry(records);
+        }
+        const groups = {};
+        records.forEach(function (r) {
+          if ((r.country || "") !== "United States") return;
+          if ((r.us_state || "") !== selectedState) return;
+          const coords = stateCentroids[selectedState];
+          const key = selectedState;
+          if (!groups[key]) {
+            groups[key] = { country: selectedState, lat: coords[0], lon: coords[1], records: [] };
+          }
+          groups[key].records.push(r);
+        });
+        if (!Object.keys(groups).length) return aggregateByCountry(records);
+        return Object.keys(groups).map(function (k) {
+          const g = groups[k];
+          g.count = g.records.length;
+          const dates = g.records.map(function (r) { return r.date || ""; }).filter(Boolean).sort();
+          g.dateMin = dates[0] || "";
+          g.dateMax = dates[dates.length - 1] || "";
+          return g;
+        });
+      }
+
       function bubbleRadius(count) {
         return Math.min(36, Math.max(10, 6 + Math.sqrt(count) * 5));
       }
@@ -436,19 +550,22 @@
       function renderIncidentMap(records, colorBy) {
         const el = document.getElementById("incident-map");
         if (!el || typeof L === "undefined") return;
-        destroyMap();
 
         const field = colorBy === "industry_type" ? "industry_type"
           : colorBy === "region" ? "region" : "ai_incident_type";
         const labels = { region: "Region", industry_type: "Industry type", ai_incident_type: "AI incident type" };
-        const clusters = aggregateByCountry(records);
+        const clusters = aggregateByLocation(records);
 
-        incidentMap = L.map(el, { worldCopyJump: true, scrollWheelZoom: true }).setView([20, 10], 2);
-        L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
-          maxZoom: 18,
-          attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
-        }).addTo(incidentMap);
-        incidentLayer = L.layerGroup().addTo(incidentMap);
+        if (!incidentMap) {
+          incidentMap = L.map(el, { worldCopyJump: true, scrollWheelZoom: true }).setView([20, 10], 2);
+          L.tileLayer("https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png", {
+            maxZoom: 18,
+            attribution: "&copy; <a href=\"https://www.openstreetmap.org/copyright\">OpenStreetMap</a>",
+          }).addTo(incidentMap);
+          incidentLayer = L.layerGroup().addTo(incidentMap);
+        } else {
+          destroyMapLayer();
+        }
 
         const bounds = [];
         const legendValues = {};
@@ -524,14 +641,36 @@
         const colorBy = (document.getElementById("map-color-by") || {}).value || "ai_incident_type";
         const kpi = document.getElementById("kpi-shown");
         if (kpi) kpi.textContent = String(filtered.length);
+        updateIntroCount(filtered.length);
 
-        destroyCharts();
-        colorIndex = {};
         renderIncidentMap(filtered, colorBy);
-        barChart("chart-region", countBy(filtered, "region"), true);
-        barChart("chart-industry", countBy(filtered, "industry_type"), true);
-        barChart("chart-ai", countBy(filtered, "ai_incident_type"), true);
+
+        const regionRows = countBy(filtered, "region");
+        const industryRows = countBy(filtered, "industry_type");
+        const aiRows = countBy(filtered, "ai_incident_type");
+
+        if (!chartRegion) {
+          chartRegion = barChart("chart-region", regionRows, true);
+          chartIndustry = barChart("chart-industry", industryRows, true);
+          chartAi = barChart("chart-ai", aiRows, true);
+        } else {
+          updateBarChart(chartRegion, regionRows);
+          updateBarChart(chartIndustry, industryRows);
+          updateBarChart(chartAi, aiRows);
+        }
+
         updateArticlesTable(filtered);
+      }
+
+      function toggleArticleSort(key) {
+        if (!key) return;
+        if (articleSort.key === key) {
+          articleSort.dir = articleSort.dir === "asc" ? "desc" : "asc";
+        } else {
+          articleSort.key = key;
+          articleSort.dir = key === "date" ? "desc" : "asc";
+        }
+        updateArticlesTable(filterRecords(allRecords));
       }
 
       function articleSearchQuery() {
@@ -639,7 +778,7 @@
         const url = URL.createObjectURL(blob);
         const anchor = document.createElement("a");
         anchor.href = url;
-        anchor.download = "labor-impact-articles-" + new Date().toISOString().slice(0, 10) + ".csv";
+        anchor.download = "labor-impact-articles-" + fmtLocal(new Date()) + ".csv";
         anchor.click();
         URL.revokeObjectURL(url);
       }
@@ -653,6 +792,7 @@
           return;
         }
         if (!allRecords.length) return;
+        totalRecordCount = allRecords.length;
 
         const industries = [], aiTypes = [];
         allRecords.forEach(function (r) {
@@ -671,16 +811,15 @@
           });
         }
         document.querySelectorAll("#articles-table th.sortable").forEach(function (th) {
-          th.addEventListener("click", function () {
-            const key = th.getAttribute("data-sort-key");
-            if (!key) return;
-            if (articleSort.key === key) {
-              articleSort.dir = articleSort.dir === "asc" ? "desc" : "asc";
-            } else {
-              articleSort.key = key;
-              articleSort.dir = key === "date" ? "desc" : "asc";
+          function onSort() {
+            toggleArticleSort(th.getAttribute("data-sort-key"));
+          }
+          th.addEventListener("click", onSort);
+          th.addEventListener("keydown", function (event) {
+            if (event.key === "Enter" || event.key === " ") {
+              event.preventDefault();
+              onSort();
             }
-            updateArticlesTable(filterRecords(allRecords));
           });
         });
         const csvBtn = document.getElementById("download-articles-csv");
@@ -699,6 +838,12 @@
         document.querySelectorAll('input[name="geographic_regions"]').forEach(function (cb) {
           cb.addEventListener("change", renderDashboard);
         });
+        const dateFrom = document.getElementById("viz_date_from");
+        const dateTo = document.getElementById("viz_date_to");
+        if (dateFrom) dateFrom.addEventListener("change", function () { setActivePreset(""); renderDashboard(); });
+        if (dateTo) dateTo.addEventListener("change", function () { setActivePreset(""); renderDashboard(); });
+        const keywords = document.getElementById("viz_extra_keywords");
+        if (keywords) keywords.addEventListener("input", renderDashboard);
         renderDashboard();
       }
 

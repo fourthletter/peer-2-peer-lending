@@ -224,11 +224,6 @@ def build_digest(
             "No articles were found for this date range and query. "
             "Try a wider date range, fewer focus keywords, or check EVENTREGISTRY_API_KEY. "
         )
-    elif not candidates and discovered_raw > 0 and config.geographic_regions:
-        note = (
-            "No articles matched the selected geographic regions after discovery. "
-            "Try broader regions or clear focus keywords."
-        )
     elif ranked and len(ranked) < config.article_count:
         note = (
             f"Only {len(ranked)} article(s) met the relevance threshold "

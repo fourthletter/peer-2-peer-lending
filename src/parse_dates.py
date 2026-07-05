@@ -43,7 +43,7 @@ def in_date_range(
     date_to: date | None,
 ) -> bool:
     if published is None:
-        return True
+        return False
     pub_date = published.date()
     if date_from and pub_date < date_from:
         return False
