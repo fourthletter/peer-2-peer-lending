@@ -4,12 +4,12 @@ from __future__ import annotations
 
 import logging
 import os
-import re
 from dataclasses import dataclass
 from datetime import datetime
 
 from src.geo_diversity import diversify_ranked, geo_diversity_enabled
 from src.llm import chat_json
+from src.relevance import relevance_score
 from src.text_utils import strip_html
 
 logger = logging.getLogger(__name__)
@@ -35,17 +35,6 @@ industry/workplace change score 45+. Sector-specific labor stories (manufacturin
 retail, logistics, creative, tech) score 40+ when AI is involved.
 Generic tech product news without labor angle scores below 35.\
 """
-
-LABOR_KEYWORDS = re.compile(
-    r"\b(ai|artificial intelligence|machine learning|generative ai|chatgpt|"
-    r"labor|labour|jobs?|employment|workers?|workforce|workplace|"
-    r"wages?|salary|salaries|hiring|layoff|layoffs|redundan|"
-    r"automation|robot|robotics|union|strike|gig economy|freelance|"
-    r"industr(?:y|ies)|manufacturing|warehouse|retail|clerical|"
-    r"white.?collar|blue.?collar|reskill|upskill|job market|staffing)\b",
-    re.I,
-)
-
 
 @dataclass
 class RankedArticle:
@@ -222,22 +211,24 @@ def _keyword_fallback(
     top_n: int,
     geographic_regions: tuple[str, ...] = (),
 ) -> list[RankedArticle]:
-    """Use keyword overlap when the LLM returns no passing articles."""
+    """Score by AI+labor signal co-occurrence when LLM ranking is off or fails."""
+    boost_labels = _region_boost_labels(geographic_regions)
     scored: list[tuple[int, int, dict]] = []
     for i, c in enumerate(to_rank):
-        blob = f"{c.get('headline', '')} {_preview_text(c)}"
-        hits = len(LABOR_KEYWORDS.findall(blob))
-        if hits:
-            scored.append((hits, i, c))
+        score = relevance_score(c.get("headline", ""), _preview_text(c))
+        if score > 0:
+            score = _apply_region_boost(c, score, boost_labels)
+            scored.append((score, i, c))
 
+    # Stable sort keeps discovery merge priority for equal scores.
     scored.sort(key=lambda x: x[0], reverse=True)
     out: list[RankedArticle] = []
-    for hits, _, c in scored:
+    for score, _, c in scored:
         out.append(
             _ranked_from_candidate(
                 c,
-                score=40 + min(hits * 10, 50),
-                reason="Keyword match (LLM ranking unavailable or too strict)",
+                score=score,
+                reason="AI + labor keyword relevance (LLM ranking off or unavailable)",
             )
         )
     out = _select_top(out, top_n, geographic_regions=geographic_regions)

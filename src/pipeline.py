@@ -23,6 +23,7 @@ from src.emailer import send_digest
 from src.fetch import canonical_article_url, enrich_candidates_parallel
 from src.text_utils import strip_html
 from src.rank import rank_articles, rank_by_eventregistry_score, rank_use_er_score
+from src.relevance import relevance_score as heuristic_relevance
 from src.storage import load_sent_urls, normalize_url, save_sent_urls
 from src.summarize import DigestArticle, llm_summary_enabled, summarize_articles
 
@@ -58,7 +59,13 @@ def _fast_rank_enabled() -> bool:
 
 
 def _rank_pool(candidates: list, max_to_rank: int) -> list:
-    """Prefer Event Registry articles (sorted by API relevance) for the ranking pool."""
+    """Pick the most on-topic candidates for the (small) ranking pool.
+
+    Discovery can return 100+ candidates but only ``max_to_rank`` are scored by
+    the ranker, so pre-select by the AI+labor keyword heuristic instead of
+    taking the first N in merge order. The sort is stable, so discovery merge
+    priority still breaks ties.
+    """
     er = sorted(
         [c for c in candidates if c.provider == "eventregistry"],
         key=lambda c: c.relevance_score,
@@ -70,7 +77,12 @@ def _rank_pool(candidates: list, max_to_rank: int) -> list:
         if len(pool) < max_to_rank:
             pool.extend(other[: max_to_rank - len(pool)])
         return pool
-    return candidates[:max_to_rank]
+    prescored = sorted(
+        candidates,
+        key=lambda c: heuristic_relevance(c.headline, strip_html(c.snippet)),
+        reverse=True,
+    )
+    return prescored[:max_to_rank]
 
 
 def build_digest(

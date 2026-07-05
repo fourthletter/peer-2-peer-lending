@@ -3,17 +3,30 @@
 from __future__ import annotations
 
 import os
+import re
 from collections import Counter, defaultdict
 from dataclasses import asdict, dataclass
 from datetime import date, datetime, timedelta
+from functools import lru_cache
 
 from src.article import ArticleCandidate
 from src.coverage import infer_publisher_country
 from src.geo_diversity import geographic_bucket
 from src.rank import RankedArticle
+from src.relevance import is_labor_relevant
 from src.thematic_regions import THEMATIC_REGIONS, classify_thematic_region
 
 VIZ_MIN_DATE = date(2020, 1, 1)
+
+
+def _relevance_gate_enabled() -> bool:
+    """Require AI + labor signals per article (VIZ_RELEVANCE_GATE=0 to disable)."""
+    return os.environ.get("VIZ_RELEVANCE_GATE", "1") == "1"
+
+
+def _headline_key(headline: str) -> str:
+    """Normalized headline for syndication dedup (same story, different outlets)."""
+    return re.sub(r"[^a-z0-9]+", " ", (headline or "").lower()).strip()
 
 
 def empty_impact_viz(*, year_label: str = "Jan 2020 – present") -> dict:
@@ -93,24 +106,24 @@ _JOB_RULES: list[tuple[str, tuple[str, ...]]] = [
 ]
 
 _AI_INCIDENT_RULES: list[tuple[str, tuple[str, ...]]] = [
-    ("Job loss & layoffs", ("layoff", "layoffs", "job cut", "job loss", "fired", "redundan", "unemployment")),
-    ("Hiring & labor demand", ("hiring", "job market", "employment growth", "wage", "recruit")),
+    ("Job loss & layoffs", ("layoff", "job cut", "job loss", "fired", "redundancy", "redundancies", "redundant", "unemployment")),
+    ("Hiring & labor demand", ("hiring", "job market", "employment growth", "wage", "recruit", "recruiting", "recruitment")),
     ("Automation & robotics", ("automation", "robot", "robotics", "self-driving", "autonomous")),
     ("Creative rights & voice", ("voice actor", "plagiarism", "copyright", "unauthorized ai voice", "creative")),
     ("Platform & gig work", ("uber", "gig economy", "delivery driver", "platform worker", "freelance platform")),
-    ("Surveillance & monitoring", ("surveillance", "monitor", "facial recognition", "tracking workers")),
+    ("Surveillance & monitoring", ("surveillance", "monitor", "monitoring", "facial recognition", "tracking workers")),
     ("Policy & regulation", ("regulation", "policy", "lawmakers", "legislation", "union", "strike", "collective bargaining")),
-    ("Industry & sector change", ("industry", "sector", "manufacturing", "supply chain", "logistics", "retail")),
-    ("Skills & reskilling", ("reskill", "upskill", "training program", "skills gap", "retrain")),
+    ("Industry & sector change", ("industry", "industries", "sector", "manufacturing", "supply chain", "logistics", "retail")),
+    ("Skills & reskilling", ("reskill", "reskilling", "upskill", "upskilling", "training program", "skills gap", "retrain", "retraining")),
 ]
 
 _INDUSTRY_RULES: list[tuple[str, tuple[str, ...]]] = [
-    ("Technology", ("technology", "tech ", "software", "semiconductor", "cloudflare", "microsoft", "google", "meta ", "openai")),
+    ("Technology", ("technology", "tech", "software", "semiconductor", "cloudflare", "microsoft", "google", "meta", "openai")),
     ("Entertainment & media", ("entertainment", "film", "studio", "actor", "voice", "disney", "netflix", "gaming")),
-    ("Finance & professional services", ("bank", "finance", "goldman", "consulting", "accounting", "ey ", "deloitte")),
+    ("Finance & professional services", ("bank", "finance", "goldman", "consulting", "accounting", "deloitte", "kpmg", "pwc", "accenture", "mckinsey", "ernst & young")),
     ("Healthcare", ("healthcare", "hospital", "clinical", "medical", "nursing")),
     ("Retail & apparel", ("retail", "apparel", "fashion", "garment", "clothing")),
-    ("Logistics & transport", ("logistics", "shipping", "transport", "warehouse", "fedex", "ups ")),
+    ("Logistics & transport", ("logistics", "shipping", "transport", "warehouse", "fedex", "ups")),
     ("Domestic & personal services", ("domestic", "nanny", "maid", "cleaning")),
     ("Education", ("education", "university", "college", "school", "student")),
     ("Automotive & mobility", ("automotive", "tesla", "uber", "ride-hailing", "self-driving")),
@@ -257,9 +270,21 @@ def _region_from_candidate(candidate: ArticleCandidate | RankedArticle | dict) -
     return "Unspecified"
 
 
+@lru_cache(maxsize=1024)
+def _phrase_re(phrase: str) -> re.Pattern:
+    """Whole-word phrase matcher (optionally plural).
+
+    Naive substring matching misfiled articles: "ups " matched "groups ",
+    "ey " matched "money ", "tech " matched "fintech ".
+    """
+    return re.compile(
+        r"(?<!\w)" + re.escape(phrase.strip()) + r"(?:s|es)?(?!\w)", re.I
+    )
+
+
 def _match_rules(blob: str, rules: list[tuple[str, tuple[str, ...]]]) -> str | None:
     for label, phrases in rules:
-        if any(p in blob for p in phrases):
+        if any(_phrase_re(p).search(blob) for p in phrases):
             return label
     return None
 
@@ -311,6 +336,11 @@ def parse_labor_impact(
         return None
 
     blob = _blob(candidate)
+    # Drop articles without both an AI signal and a labor signal (e.g. generic
+    # AI product news). Event Registry concept labels are part of the blob, so
+    # concept-tagged labor stories pass even when the snippet is terse.
+    if _relevance_gate_enabled() and not is_labor_relevant(blob):
+        return None
     search = ""
     if isinstance(candidate, ArticleCandidate):
         search = (candidate.search_region or "").lower()
@@ -336,7 +366,7 @@ def parse_labor_impact(
     if not ai_incident:
         if search.startswith("eventregistry:creative"):
             ai_incident = "Creative rights & voice"
-        elif "layoff" in blob or "job" in blob:
+        elif _phrase_re("layoff").search(blob) or _phrase_re("job").search(blob):
             ai_incident = "Job loss & layoffs"
         elif search.startswith("eventregistry:workforce"):
             ai_incident = "Platform & gig work"
@@ -479,8 +509,12 @@ def build_impact_dataset(
     digest_urls = digest_urls or set()
     parsed: list[LaborImpactRecord] = []
     seen: set[str] = set()
+    seen_titles: set[str] = set()
     for c in candidates:
         if c.url in seen:
+            continue
+        title_key = _headline_key(c.headline)
+        if len(title_key) >= 20 and title_key in seen_titles:
             continue
         row = parse_labor_impact(
             c,
@@ -491,6 +525,7 @@ def build_impact_dataset(
         if row is None:
             continue
         seen.add(c.url)
+        seen_titles.add(title_key)
         parsed.append(row)
 
     records = _select_balanced_records(parsed, max_records)

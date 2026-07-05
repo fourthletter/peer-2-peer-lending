@@ -59,6 +59,7 @@
                 <label for="viz_extra_keywords">Focus keywords</label>
                 <input type="search" id="viz_extra_keywords" name="extra_keywords"
                   placeholder="e.g. garment, voice actors" value="{{ extra_keywords }}">
+                <p class="field-hint">Comma separates alternatives; words in one phrase must all match (e.g. <em>amazon warehouse, gig drivers</em>).</p>
               </div>
               <div class="field-block">
                 <label for="filter-us-state">US state</label>
@@ -380,19 +381,34 @@
         return true;
       }
 
-      function recordMatchesKeywords(record, keywords) {
-        if (!keywords) return true;
-        const blob = [
+      function recordSearchBlob(record) {
+        return [
           record.headline || "",
           record.region || "",
           record.country || "",
           record.industry_type || "",
           record.ai_incident_type || "",
+          record.job_type || "",
           record.source || "",
         ].join(" ").toLowerCase();
-        const phrases = keywords.split(/[,;]+/).map(function (p) { return p.trim(); }).filter(Boolean);
-        if (!phrases.length) return blob.indexOf(keywords) >= 0;
-        return phrases.some(function (p) { return blob.indexOf(p.toLowerCase()) >= 0; });
+      }
+
+      // Commas/semicolons separate alternatives (OR); within an alternative,
+      // every whitespace-separated word must match (AND). So
+      // "amazon warehouse, gig drivers" = (amazon AND warehouse) OR (gig AND drivers).
+      function blobMatchesQuery(blob, query) {
+        const phrases = (query || "").split(/[,;]+/).map(function (p) { return p.trim().toLowerCase(); }).filter(Boolean);
+        if (!phrases.length) return true;
+        return phrases.some(function (phrase) {
+          return phrase.split(/\s+/).every(function (term) {
+            return blob.indexOf(term) >= 0;
+          });
+        });
+      }
+
+      function recordMatchesKeywords(record, keywords) {
+        if (!keywords) return true;
+        return blobMatchesQuery(recordSearchBlob(record), keywords);
       }
 
       function filterRecords(records) {
@@ -682,15 +698,7 @@
         const q = articleSearchQuery();
         if (!q) return records;
         return records.filter(function (r) {
-          const blob = [
-            r.headline || "",
-            r.region || "",
-            r.country || "",
-            r.industry_type || "",
-            r.ai_incident_type || "",
-            r.source || "",
-          ].join(" ").toLowerCase();
-          return blob.indexOf(q) >= 0;
+          return blobMatchesQuery(recordSearchBlob(r), q);
         });
       }
 

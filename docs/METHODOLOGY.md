@@ -26,7 +26,8 @@ An **incident** is a single **news article** (URL) that:
 
 1. Was returned by at least one enabled discovery source (below).
 2. Has a **parseable publication date** inside the selected date window.
-3. Survives **deduplication** by canonical URL (first source to report a URL wins).
+3. Carries both an **AI/automation signal** and a **labor/work signal** in its headline, snippet, or concept tags (`src/relevance.py`; disable with `VIZ_RELEVANCE_GATE=0`). Generic AI product news without a labor angle is excluded.
+4. Survives **deduplication** by canonical URL and by normalized headline (syndicated copies of the same story count once).
 
 There is **no manual editorial gate** on the dashboard pipeline. Classification uses **headlines, snippets, Event Registry concepts, and rule-based keyword matching**—not human review.
 
