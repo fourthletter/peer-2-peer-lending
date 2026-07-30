@@ -273,8 +273,19 @@ def _store_viz_cache(
             "filter_summary": viz_result.filter_summary,
             "date_from": date_from.isoformat(),
             "date_to": date_to.isoformat(),
+            "updated_at": date.today().isoformat(),
         }
     )
+
+
+def _viz_updated_label() -> str:
+    """Human-readable date of the last successful data refresh."""
+    payload = load_payload_cache()
+    raw = (payload or {}).get("updated_at") or ""
+    try:
+        return datetime.strptime(raw, "%Y-%m-%d").strftime("%b %d, %Y")
+    except ValueError:
+        return ""
 
 
 def _template_context(
@@ -396,6 +407,7 @@ def _viz_page_context(
         ctx["date_to"] = startup_cfg.date_to
     ctx["us_state_names"] = state_names()
     ctx["us_state_centroids"] = state_centroids_json()
+    ctx["viz_updated"] = _viz_updated_label()
     return ctx
 
 

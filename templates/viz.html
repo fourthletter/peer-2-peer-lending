@@ -108,7 +108,8 @@
           {% set viz = viz_result.viz %}
           <p class="viz-intro">
             <strong id="viz-intro-count">{{ viz.total }}</strong> of {{ viz.total }} incidents shown
-            · {{ viz.year_label }} · {{ viz_result.discovered }} discovered
+            · {{ viz.year_label }} · {{ viz_result.discovered }} discovered{% if viz_updated %}
+            · Data updated {{ viz_updated }}{% endif %}
           </p>
           <div class="viz-kpis">
             <div class="viz-kpi"><strong id="kpi-shown">{{ viz.total }}</strong><span>Shown after filters</span></div>

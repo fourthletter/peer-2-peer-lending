@@ -26,11 +26,18 @@ app.config["FREEZER_IGNORE_MIMETYPE_WARNINGS"] = True
 freezer = Freezer(app)
 
 
+def _min_incidents() -> int:
+    """Deploy guard floor: refuse to export when discovery collapses (0 disables)."""
+    raw = os.environ.get("STATIC_MIN_INCIDENTS", "0").strip()
+    return int(raw) if raw.isdigit() else 0
+
+
 def _maybe_warm_viz_cache() -> None:
     if not os.environ.get("EVENTREGISTRY_API_KEY", "").strip():
         print("Skipping viz preload (EVENTREGISTRY_API_KEY not set)")
         return
     os.environ.setdefault("VIZ_CACHE_DIR", str(ROOT / ".viz_cache"))
+    total = 0
     try:
         from src.impact_viz import build_labor_impact_viz
         from src.web import _startup_viz_config, _store_viz_cache
@@ -43,6 +50,15 @@ def _maybe_warm_viz_cache() -> None:
         print(f"Cached {total} incidents for static export")
     except Exception as exc:
         print(f"Warning: viz preload failed ({exc}); exporting empty dashboard")
+
+    floor = _min_incidents()
+    if floor and total < floor:
+        # On scheduled unattended builds a failed/near-empty API pull must not
+        # replace the good data already deployed; failing here keeps it live.
+        raise SystemExit(
+            f"Refusing to export: only {total} incidents cached "
+            f"(< STATIC_MIN_INCIDENTS={floor}). Previous deploy stays live."
+        )
 
 
 @freezer.register_generator

@@ -5,6 +5,9 @@ on:
     branches:
       - main
   workflow_dispatch:
+  schedule:
+    # Daily rebuild so the dashboard picks up new articles automatically.
+    - cron: "30 5 * * *"
 
 permissions:
   contents: read
@@ -28,6 +31,17 @@ jobs:
       - name: Install build dependencies
         run: pip install -r requirements-build.txt
 
+      # Rolling cache of per-year Event Registry pulls (saves API tokens on the
+      # daily schedule). The current year is always re-fetched regardless, so
+      # new articles still arrive every build; past years load from cache.
+      - name: Restore per-year article cache
+        uses: actions/cache@v4
+        with:
+          path: .viz_cache/years
+          key: viz-years-${{ github.run_id }}
+          restore-keys: |
+            viz-years-
+
       - name: Build static site
         env:
           SITE_URL: https://morethancode.org
@@ -35,7 +49,8 @@ jobs:
           STATIC_BUILD: "1"
           VIZ_LOAD_ON_STARTUP: "0"
           WARM_VIZ_CACHE: "1"
-          VIZ_CACHE_REFRESH: "1"
+          VIZ_CACHE_REFRESH: "0"
+          STATIC_MIN_INCIDENTS: "50"
           EVENTREGISTRY_API_KEY: ${{ secrets.EVENTREGISTRY_API_KEY }}
           NEWS_API_KEY: ${{ secrets.NEWS_API_KEY }}
           FLASK_SECRET_KEY: ${{ secrets.FLASK_SECRET_KEY }}

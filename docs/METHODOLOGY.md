@@ -130,7 +130,7 @@ Charts aggregate **all parsed records** in the selected window (subject to the c
 - **English-heavy**: queries and ranking favor English-language news; non-English stories appear when indexed with English metadata or outlets.
 - **News bias**: sources are mainstream and digital news, not worker-organizer archives.
 - **Rule-based tags**: industry and incident types are heuristic; misclassification is possible.
-- **Not real-time on static site**: production data ages until the next deploy.
+- **Not real-time on static site**: production rebuilds on a daily schedule (see `.github/workflows/pages.yml`), so articles can lag up to ~24 hours.
 - **API quotas**: Event Registry free tier and NewsAPI limits can reduce counts on any given build.
 
 Always follow the **linked original article** for full context. Summaries on the separate News aggregator (local only) may use LLM text and can err.
